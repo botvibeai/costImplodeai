@@ -26,6 +26,15 @@ database_id = "36714f60-3da5-456a-b6af-29f4dfdb5119"
 binding = "MY_QUEUE"
 queue = "8bb8234b6a504be793d004054a401306"
 
+[[d1_databases]]
+binding = "DB"
+database_name = "profitise-leads-db"
+database_id = "987158b4-6594-4555-a585-0f92eb264624"
+
+[[vectorize]]
+binding = "REMEMORY"
+index_name = "rememory-index"
+
 [[queues.consumers]]
 queue = "8bb8234b6a504be793d004054a401306"
 max_batch_size = 10

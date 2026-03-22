@@ -15,9 +15,11 @@ export interface Env {
   CF_GATEWAY_ID: string;
   COMET_API_KEY: string;
   AIML_API_KEY: string;
-  REMEMORY_INDEX: any; // VectorizeIndex
+  REMEMORY_INDEX: any; // VectorizeIndex (legacy stub)
+  REMEMORY: any; // VectorizeIndex (rememory-index)
   SHARD_1: D1Database;
-  AI_GATEWAY: any; // Simulated binding
+  DB: D1Database; // profitise-leads-db
+  AI_GATEWAY: any;
   MY_QUEUE: any; // Queue
 }
 

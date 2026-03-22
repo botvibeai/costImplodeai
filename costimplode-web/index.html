@@ -250,9 +250,36 @@
       <a href="#docs">Docs</a>
     </div>
     <div class="nav-right">
-      <a href="https://smart-spend-shift.base44.app" class="nav-cost">💰 Cost Center</a>
-      <a href="https://smart-spend-shift.base44.app/login" class="nav-signin">Sign In</a>
-      <a href="https://smart-spend-shift.base44.app/login" class="nav-cta">Get API Key</a>
+      <select class="lang-select" id="lang-select" onchange="setLang(this.value)">
+        <option value="en">🇺🇸 EN</option>
+        <option value="hi">🇮🇳 हिंदी</option>
+        <option value="bn">🇧🇩 বাং</option>
+        <option value="te">🇮🇳 తెలుగు</option>
+        <option value="ta">🇮🇳 தமிழ்</option>
+        <option value="mr">🇮🇳 मराठी</option>
+        <option value="kn">🇮🇳 ಕನ್ನಡ</option>
+        <option value="gu">🇮🇳 ગુજ</option>
+        <option value="zh">🇨🇳 中文</option>
+        <option value="ar">🇸🇦 عربي</option>
+        <option value="es">🇪🇸 ES</option>
+        <option value="pt">🇧🇷 PT</option>
+        <option value="fr">🇫🇷 FR</option>
+        <option value="ru">🇷🇺 RU</option>
+        <option value="ja">🇯🇵 日本語</option>
+        <option value="de">🇩🇪 DE</option>
+        <option value="id">🇮🇩 ID</option>
+        <option value="ko">🇰🇷 한국어</option>
+        <option value="tr">🇹🇷 TR</option>
+        <option value="vi">🇻🇳 VI</option>
+      </select>
+      <div id="auth-nav">
+        <a href="javascript:void(0)" class="nav-signin" onclick="openAuthModal('login')">Sign In</a>
+        <a href="javascript:void(0)" class="nav-cta" onclick="openAuthModal('signup')">Get Started</a>
+      </div>
+      <div id="user-nav" style="display:none;">
+        <span id="user-display" style="font-size:12px;color:var(--muted);margin-right:10px;"></span>
+        <a href="javascript:void(0)" class="nav-signin" onclick="handleLogout()">Logout</a>
+      </div>
     </div>
   </div>
 </nav>
@@ -263,7 +290,7 @@
   <h1>AI-Powered<br><span>LLM Arbitrage</span><br>Gateway</h1>
   <p class="hero-sub">Intelligently route LLM requests across 800+ models to slash token costs by up to 96%. One API. Real-time cost arbitrage. Zero code changes.</p>
   <div class="hero-actions">
-    <a href="https://smart-spend-shift.base44.app/login" class="btn-primary">Start Free →</a>
+    <a href="javascript:void(0)" onclick="openAuthModal('signup')" class="btn-primary">Start Free →</a>
     <a href="#docs" class="btn-secondary">View Documentation</a>
   </div>
   <div style="display:flex;justify-content:center;margin-bottom:48px;">
@@ -632,7 +659,7 @@ response = client.chat.completions.create(
         <li>Basic routing</li>
         <li>Community support</li>
       </ul>
-      <button class="price-btn price-btn-outline" onclick="window.location='https://smart-spend-shift.base44.app/login'">Start Free</button>
+      <button class="price-btn price-btn-outline" onclick="openAuthModal('signup')">Start Free</button>
     </div>
 
     <div class="price-card featured">
@@ -649,7 +676,7 @@ response = client.chat.completions.create(
         <li>Priority fallback</li>
         <li>Extends to Dec 31 at 2K users</li>
       </ul>
-      <button class="price-btn price-btn-filled" onclick="window.location='https://smart-spend-shift.base44.app/login'">Claim Free Pro →</button>
+      <button class="price-btn price-btn-filled" onclick="openAuthModal('signup')">Claim Free Pro →</button>
     </div>
 
     <div class="price-card">
@@ -663,7 +690,7 @@ response = client.chat.completions.create(
         <li>Email support</li>
         <li>Cost analytics dashboard</li>
       </ul>
-      <button class="price-btn price-btn-outline" onclick="window.location='https://smart-spend-shift.base44.app/login'">Get Started</button>
+      <button class="price-btn price-btn-outline" onclick="openAuthModal('signup')">Get Started</button>
     </div>
 
     <div class="price-card">
@@ -752,7 +779,7 @@ response = client.chat.completions.create(
       <p>Full model catalog, pricing, and integration guide for the cost-fallback provider with 620+ models.</p>
       <div class="doc-link">docs.cometapi.com →</div>
     </div>
-    <div class="doc-card" onclick="window.location='https://smart-spend-shift.base44.app/login'">
+    <div class="doc-card" onclick="openAuthModal('login')">
       <div class="doc-icon">⚡</div>
       <h3>Gateway Quickstart</h3>
       <p>Sign up, paste your keys, get your API key, and send your first routed request — all in under 5 minutes.</p>
@@ -784,7 +811,7 @@ response = client.chat.completions.create(
   <div class="section-label">Get Started</div>
   <h2>Stop Overpaying for<br><span>AI Inference</span></h2>
   <p>Free Pro access until July 1st. No credit card. 5-minute setup.</p>
-  <a href="https://smart-spend-shift.base44.app/login" class="btn-primary" style="font-size:18px;padding:16px 44px;">Get Your API Key Free →</a>
+  <a href="javascript:void(0)" onclick="openAuthModal('signup')" class="btn-primary" style="font-size:18px;padding:16px 44px;">Get Your API Key Free →</a>
   <div style="margin-top:16px;font-size:13px;color:var(--dim);">Free tier available · No credit card required · 5-minute setup</div>
 </div>
 
@@ -803,7 +830,7 @@ response = client.chat.completions.create(
         <h4>Product</h4>
         <a href="#features">Features</a>
         <a href="#pricing">Pricing</a>
-        <a href="https://smart-spend-shift.base44.app">Dashboard</a>
+        <a href="javascript:void(0)" onclick="openAuthModal('login')">Dashboard</a>
         <a href="#" style="color:var(--dim)">Status Page</a>
         <a href="#" style="color:var(--dim)">Changelog</a>
       </div>
@@ -1257,7 +1284,7 @@ async function callAgent(message) {
     });
     const data = await res.json();
     hideTyping();
-    addBotMessage(data.reply || 'Sorry, I had a momentary issue. Please try again.');
+    addBotMessage(data.response || data.reply || 'Sorry, I had a momentary issue. Please try again.');
     // Auto-route to suggested agent
     if (data.route_to && data.route_to !== currentAgent && AGENT_META[data.route_to]) {
       setTimeout(() => {
@@ -1274,5 +1301,115 @@ async function callAgent(message) {
 }
 </script>
 
+<!-- ── AUTH MODAL ── -->
+<div id="authModal" class="auth-modal-overlay" style="display:none;">
+  <div class="auth-modal">
+    <div class="auth-modal-close" onclick="closeAuthModal()">×</div>
+    <div id="auth-login-view">
+      <h3>Sign In to <span>CostImplode</span></h3>
+      <p>Enter your credentials to access your dashboard</p>
+      <input type="email" id="login-email" placeholder="Email Address" class="auth-input">
+      <input type="password" id="login-password" placeholder="Password" class="auth-input">
+      <button onclick="handleLoginFlow()" class="btn-primary" style="width:100%;margin-top:10px;">Sign In</button>
+      <div style="margin-top:15px;font-size:13px;color:var(--dim);text-align:center;">
+        Don't have an account? <a href="javascript:void(0)" onclick="toggleAuthView('signup')" style="color:var(--orange)">Sign Up</a>
+      </div>
+      <div style="margin-top:10px;text-align:center;font-size:12px;">
+        <a href="javascript:void(0)" onclick="handlePasswordReset()" style="color:var(--dim)">Forgot Password?</a>
+      </div>
+    </div>
+    <div id="auth-signup-view" style="display:none;">
+      <h3>Create Your <span>Account</span></h3>
+      <p>Join 2,000+ developers saving on LLM costs</p>
+      <input type="email" id="signup-email" placeholder="Email Address" class="auth-input">
+      <input type="password" id="signup-password" placeholder="Password (Min 8 characters)" class="auth-input">
+      <button onclick="handleSignupFlow()" class="btn-primary" style="width:100%;margin-top:10px;">Start Free Pro</button>
+      <div style="margin-top:15px;font-size:13px;color:var(--dim);text-align:center;">
+        Already have an account? <a href="javascript:void(0)" onclick="toggleAuthView('login')" style="color:var(--orange)">Sign In</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+.auth-modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.85); z-index: 1000; display: flex; align-items: center; justify-content: center; backdrop-filter: blur(8px); }
+.auth-modal { background: var(--card); border: 1px solid var(--border); border-radius: 20px; width: 100%; max-width: 400px; padding: 40px; position: relative; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+.auth-modal-close { position: absolute; top: 20px; right: 20px; font-size: 24px; color: var(--dim); cursor: pointer; }
+.auth-modal h3 { font-size: 24px; font-weight: 800; margin-bottom: 8px; }
+.auth-modal h3 span { color: var(--orange); }
+.auth-modal p { font-size: 14px; color: var(--muted); margin-bottom: 24px; }
+.auth-input { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 12px 16px; color: var(--text); font-size: 14px; margin-bottom: 12px; outline: none; transition: border-color .15s; }
+.auth-input:focus { border-color: var(--orange-border); }
+</style>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+  import { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
+
+  // TODO: PASTE YOUR FIREBASE CONFIG HERE
+  const firebaseConfig = {
+    apiKey: "YOUR_API_KEY",
+    authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+    projectId: "YOUR_PROJECT_ID",
+    storageBucket: "YOUR_PROJECT_ID.appspot.com",
+    messagingSenderId: "YOUR_SENDER_ID",
+    appId: "YOUR_APP_ID"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  window.openAuthModal = (view) => {
+    document.getElementById('authModal').style.display = 'flex';
+    toggleAuthView(view);
+  };
+  window.closeAuthModal = () => document.getElementById('authModal').style.display = 'none';
+  window.toggleAuthView = (view) => {
+    document.getElementById('auth-login-view').style.display = view === 'login' ? 'block' : 'none';
+    document.getElementById('auth-signup-view').style.display = view === 'signup' ? 'block' : 'none';
+  };
+
+  window.handleLoginFlow = async () => {
+    const email = document.getElementById('login-email').value;
+    const pass = document.getElementById('login-password').value;
+    try {
+      if(!email || !pass) return alert('Enter email and password');
+      await signInWithEmailAndPassword(auth, email, pass);
+      closeAuthModal();
+    } catch (e) { alert(e.message); }
+  };
+
+  window.handleSignupFlow = async () => {
+    const email = document.getElementById('signup-email').value;
+    const pass = document.getElementById('signup-password').value;
+    try {
+      if(!email || !pass) return alert('Enter email and password');
+      await createUserWithEmailAndPassword(auth, email, pass);
+      closeAuthModal();
+    } catch (e) { alert(e.message); }
+  };
+
+  window.handleLogout = () => signOut(auth);
+
+  window.handlePasswordReset = async () => {
+    const email = document.getElementById('login-email').value;
+    if (!email) return alert('Please enter your email address first.');
+    try {
+      await sendPasswordResetEmail(auth, email);
+      alert('Password reset email sent!');
+    } catch (e) { alert(e.message); }
+  };
+
+  onAuthStateChanged(auth, (user) => {
+    if (user) {
+      document.getElementById('auth-nav').style.display = 'none';
+      document.getElementById('user-nav').style.display = 'flex';
+      document.getElementById('user-display').textContent = user.email.split('@')[0];
+    } else {
+      document.getElementById('auth-nav').style.display = 'flex';
+      document.getElementById('user-nav').style.display = 'none';
+    }
+  });
+</script>
 <script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9e01db059841678c',t:'MTc3NDE0NzQ3Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
