@@ -1,0 +1,32 @@
+name = "costimplode-api"
+main = "src/index.ts"
+compatibility_date = "2024-03-21"
+
+[ai]
+binding = "AI"
+
+[[durable_objects.bindings]]
+name = "ARBITRAGE_STATE"
+class_name = "ArbitrageStateDO"
+
+[[migrations]]
+tag = "v1"
+new_classes = ["ArbitrageStateDO"]
+
+[vars]
+CF_ACCOUNT_ID = "238d310f3765a8e468d03595522a0404"
+CF_GATEWAY_ID = "costimplode-gateway"
+
+[[d1_databases]]
+binding = "SHARD_1"
+database_name = "SHARD_1"
+database_id = "36714f60-3da5-456a-b6af-29f4dfdb5119"
+
+[[queues.producers]]
+binding = "MY_QUEUE"
+queue = "8bb8234b6a504be793d004054a401306"
+
+[[queues.consumers]]
+queue = "8bb8234b6a504be793d004054a401306"
+max_batch_size = 10
+dead_letter_queue = "my-queue-dlq"

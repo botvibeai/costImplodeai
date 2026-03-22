@@ -1,0 +1,1278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CostImplode AI — LLM Arbitrage Gateway</title>
+  <meta name="description" content="Intelligently route LLM requests across 800+ models to slash token costs by up to 96%. One API. BYOK. Real-time cost arbitrage on Cloudflare's global edge." />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --orange: #f97316;
+      --orange-light: #fb923c;
+      --orange-dim: rgba(249,115,22,0.12);
+      --orange-border: rgba(249,115,22,0.3);
+      --bg: #030712;
+      --surface: #0f172a;
+      --card: #0d1117;
+      --card2: #111827;
+      --border: #1f2937;
+      --border2: #374151;
+      --text: #f9fafb;
+      --muted: #9ca3af;
+      --dim: #6b7280;
+      --green: #4ade80;
+      --blue: #60a5fa;
+      --purple: #c084fc;
+    }
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--text); font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; line-height: 1.6; overflow-x: hidden; }
+    a { text-decoration: none; color: inherit; }
+    hr.divider { border: none; border-top: 1px solid var(--border); max-width: 1100px; margin: 0 auto; }
+
+    /* ── NAV ── */
+    nav { position: fixed; top: 0; left: 0; right: 0; z-index: 100; backdrop-filter: blur(14px); background: rgba(3,7,18,0.88); border-bottom: 1px solid var(--border); }
+    .nav-inner { max-width: 1140px; margin: 0 auto; padding: 13px 24px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 17px; letter-spacing: -0.01em; white-space: nowrap; }
+    .logo-mark { width: 32px; height: 32px; background: var(--orange); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 900; color: white; flex-shrink: 0; }
+    .nav-links { display: flex; align-items: center; gap: 26px; }
+    .nav-links a { color: var(--muted); font-size: 14px; font-weight: 500; transition: color .15s; }
+    .nav-links a:hover { color: var(--text); }
+    .nav-right { display: flex; align-items: center; gap: 10px; }
+    .lang-select { background: var(--card); border: 1px solid var(--border); color: var(--muted); padding: 6px 10px; border-radius: 8px; font-size: 13px; cursor: pointer; }
+    .nav-cost { color: var(--muted); font-size: 13px; font-weight: 500; display: flex; align-items: center; gap: 5px; }
+    .nav-signin { color: var(--muted); font-size: 14px; font-weight: 500; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--border); transition: all .15s; }
+    .nav-signin:hover { border-color: var(--border2); color: var(--text); }
+    .nav-cta { background: var(--orange); color: white; padding: 8px 18px; border-radius: 8px; font-size: 14px; font-weight: 700; transition: background .15s; white-space: nowrap; }
+    .nav-cta:hover { background: var(--orange-light); }
+
+    /* ── HERO ── */
+    .hero { padding: 140px 24px 70px; text-align: center; position: relative; overflow: hidden; }
+    .hero::before { content: ''; position: absolute; top: 0; left: 50%; transform: translateX(-50%); width: 900px; height: 700px; background: radial-gradient(ellipse at center top, rgba(249,115,22,0.11) 0%, transparent 65%); pointer-events: none; }
+    .badge { display: inline-flex; align-items: center; gap: 7px; background: var(--orange-dim); border: 1px solid var(--orange-border); color: var(--orange-light); font-size: 12px; font-weight: 700; padding: 5px 15px; border-radius: 999px; margin-bottom: 28px; letter-spacing: .03em; }
+    .badge-dot { width: 7px; height: 7px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.5;transform:scale(.8)} }
+    h1 { font-size: clamp(38px, 6.5vw, 76px); font-weight: 900; line-height: 1.03; letter-spacing: -0.035em; margin-bottom: 24px; }
+    h1 span { color: var(--orange); }
+    .hero-sub { max-width: 600px; margin: 0 auto 40px; color: var(--muted); font-size: clamp(16px, 2vw, 20px); line-height: 1.65; }
+    .hero-actions { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin-bottom: 20px; }
+    .btn-primary { background: var(--orange); color: white; padding: 14px 32px; border-radius: 12px; font-size: 16px; font-weight: 700; transition: all .2s; border: none; cursor: pointer; display: inline-block; }
+    .btn-primary:hover { background: var(--orange-light); transform: translateY(-1px); box-shadow: 0 8px 28px rgba(249,115,22,0.3); }
+    .btn-secondary { background: transparent; color: var(--muted); padding: 14px 32px; border-radius: 12px; font-size: 16px; font-weight: 600; transition: all .2s; border: 1px solid var(--border2); cursor: pointer; display: inline-block; }
+    .btn-secondary:hover { color: var(--text); border-color: var(--muted); }
+    .byok-notice { display: inline-flex; align-items: center; gap: 8px; background: rgba(249,115,22,0.08); border: 1px solid var(--orange-border); color: var(--orange-light); font-size: 13px; padding: 9px 18px; border-radius: 10px; margin-bottom: 48px; max-width: 560px; text-align: left; line-height: 1.5; }
+
+    /* ── HERO PANEL ── */
+    .hero-panel { max-width: 720px; margin: 0 auto; }
+    .live-optimizer { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .lo-header { padding: 13px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 8px; font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; }
+    .lo-dot { width: 8px; height: 8px; background: var(--green); border-radius: 50%; animation: pulse 2s infinite; }
+    .lo-row { display: flex; align-items: center; justify-content: space-between; padding: 13px 18px; border-bottom: 1px solid var(--border); }
+    .lo-row:last-child { border-bottom: none; }
+    .lo-task { font-size: 14px; font-weight: 600; color: var(--text); margin-bottom: 2px; }
+    .lo-route { font-size: 12px; color: var(--dim); }
+    .lo-route span { color: var(--orange-light); }
+    .lo-save { text-align: right; }
+    .lo-save-amt { font-size: 14px; font-weight: 700; color: var(--green); }
+    .lo-save-pct { font-size: 11px; color: var(--dim); }
+    .code-panel { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; margin-top: 16px; }
+    .code-header { padding: 11px 16px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 6px; }
+    .dot { width: 10px; height: 10px; border-radius: 50%; }
+    .dot-r { background: #ff5f57; } .dot-y { background: #febc2e; } .dot-g { background: #28c840; }
+    .code-filename { margin-left: 8px; font-size: 12px; color: var(--dim); font-family: monospace; }
+    pre { padding: 20px; font-family: 'Fira Mono', 'Cascadia Code', 'Consolas', monospace; font-size: 13px; line-height: 1.7; overflow-x: auto; }
+    .c-gray { color: #6b7280; } .c-blue { color: #60a5fa; } .c-orange { color: #fb923c; } .c-green { color: #86efac; }
+
+    /* ── STATS STRIP ── */
+    .stats-strip { max-width: 1140px; margin: 0 auto; padding: 40px 24px 60px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .stat-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 26px 24px; text-align: center; }
+    .stat-val { font-size: 44px; font-weight: 900; line-height: 1; margin-bottom: 6px; }
+    .stat-label { font-size: 13px; color: var(--muted); }
+
+    /* ── TRUST STRIP ── */
+    .trust-strip { border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); background: var(--card); padding: 18px 24px; }
+    .trust-inner { max-width: 1140px; margin: 0 auto; display: flex; align-items: center; justify-content: center; gap: 40px; flex-wrap: wrap; }
+    .trust-item { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--muted); }
+    .trust-item strong { color: var(--text); }
+
+    /* ── SECTION BASE ── */
+    .section { max-width: 1140px; margin: 0 auto; padding: 80px 24px; }
+    .section-label { font-size: 12px; font-weight: 700; color: var(--orange); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 12px; }
+    h2 { font-size: clamp(28px, 4vw, 46px); font-weight: 800; line-height: 1.08; letter-spacing: -0.025em; margin-bottom: 16px; }
+    h2 span { color: var(--orange); }
+    .section-sub { color: var(--muted); font-size: 17px; max-width: 580px; margin-bottom: 48px; line-height: 1.7; }
+
+    /* ── HOW IT WORKS ── */
+    .steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .step { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; }
+    .step-num { width: 36px; height: 36px; background: var(--orange-dim); border: 1px solid var(--orange-border); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 14px; font-weight: 800; color: var(--orange); margin-bottom: 16px; }
+    .step h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .step p { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+    /* ── BYOK ── */
+    .byok-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 60px; align-items: start; }
+    .byok-steps { display: flex; flex-direction: column; gap: 0; }
+    .byok-step { display: flex; align-items: flex-start; gap: 16px; padding: 20px 0; border-bottom: 1px solid var(--border); }
+    .byok-step:last-child { border-bottom: none; }
+    .byok-num { width: 32px; height: 32px; background: var(--orange-dim); border: 1px solid var(--orange-border); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: var(--orange); flex-shrink: 0; }
+    .byok-text h4 { font-size: 14px; font-weight: 700; margin-bottom: 4px; }
+    .byok-text p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+
+    /* ── FEATURES ── */
+    .features { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .feature { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; transition: border-color .2s; }
+    .feature:hover { border-color: var(--border2); }
+    .feature-icon { font-size: 28px; margin-bottom: 14px; }
+    .feature h3 { font-size: 15px; font-weight: 700; margin-bottom: 8px; }
+    .feature p { font-size: 13px; color: var(--muted); line-height: 1.65; }
+
+    /* ── PERFORMANCE ── */
+    .perf-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+    .perf-metrics { display: flex; flex-direction: column; gap: 12px; }
+    .metric-bar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 16px 20px; }
+    .metric-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    .metric-name { font-size: 13px; font-weight: 600; color: var(--text); }
+    .metric-val { font-size: 13px; font-weight: 700; }
+    .bar-track { height: 6px; background: var(--border); border-radius: 999px; overflow: hidden; }
+    .bar-fill { height: 100%; border-radius: 999px; background: linear-gradient(to right, var(--orange), var(--orange-light)); }
+    .routing-table { background: var(--card); border: 1px solid var(--border); border-radius: 16px; overflow: hidden; }
+    .rt-header { padding: 14px 20px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .07em; display: grid; grid-template-columns: 1fr 1fr 1fr 80px; gap: 8px; }
+    .rt-row { padding: 12px 20px; border-bottom: 1px solid var(--border); display: grid; grid-template-columns: 1fr 1fr 1fr 80px; gap: 8px; align-items: center; font-size: 13px; }
+    .rt-row:last-child { border-bottom: none; }
+    .rt-task { font-weight: 500; }
+    .rt-model { color: var(--orange-light); }
+    .rt-cost { color: var(--muted); }
+    .rt-save { color: var(--green); font-weight: 700; text-align: right; }
+    .rt-badge { display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 4px; margin-top: 2px; }
+    .rt-badge-success { background: rgba(74,222,128,0.1); color: var(--green); border: 1px solid rgba(74,222,128,0.2); }
+    .rt-badge-fallback { background: rgba(251,191,36,0.1); color: #fbbf24; border: 1px solid rgba(251,191,36,0.2); }
+
+    /* ── PRICING ── */
+    .pricing { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+    .price-card { background: var(--card); border: 1px solid var(--border); border-radius: 20px; padding: 28px; position: relative; }
+    .price-card.featured { border-color: var(--orange); background: linear-gradient(160deg, rgba(249,115,22,0.07) 0%, var(--card) 60%); }
+    .price-badge { position: absolute; top: -12px; left: 50%; transform: translateX(-50%); background: var(--orange); color: white; font-size: 11px; font-weight: 700; padding: 4px 14px; border-radius: 999px; white-space: nowrap; }
+    .price-tier { font-size: 12px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 12px; }
+    .price-amount { font-size: 40px; font-weight: 900; line-height: 1; margin-bottom: 4px; }
+    .price-amount small { font-size: 14px; font-weight: 400; color: var(--muted); }
+    .price-desc { font-size: 13px; color: var(--dim); margin-bottom: 20px; line-height: 1.5; }
+    .price-features { list-style: none; margin-bottom: 24px; display: flex; flex-direction: column; gap: 6px; }
+    .price-features li { font-size: 13px; color: var(--muted); display: flex; align-items: flex-start; gap: 8px; }
+    .price-features li::before { content: '✓'; color: var(--green); font-weight: 700; flex-shrink: 0; margin-top: 1px; }
+    .price-btn { width: 100%; padding: 12px; border-radius: 10px; font-size: 14px; font-weight: 700; cursor: pointer; transition: all .2s; border: none; }
+    .price-btn-outline { background: transparent; color: var(--text); border: 1px solid var(--border2) !important; }
+    .price-btn-outline:hover { border-color: var(--muted) !important; }
+    .price-btn-filled { background: var(--orange); color: white; }
+    .price-btn-filled:hover { background: var(--orange-light); }
+
+    /* ── COUNTDOWN ── */
+    .countdown-section { background: linear-gradient(135deg, rgba(249,115,22,0.08) 0%, var(--bg) 50%); border-top: 1px solid var(--orange-border); border-bottom: 1px solid var(--orange-border); padding: 50px 24px; text-align: center; }
+    .countdown-label { font-size: 12px; font-weight: 700; color: var(--orange); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 10px; }
+    .countdown-title { font-size: clamp(20px, 3vw, 28px); font-weight: 800; margin-bottom: 6px; }
+    .countdown-sub { color: var(--muted); font-size: 14px; margin-bottom: 28px; max-width: 500px; margin-left: auto; margin-right: auto; }
+    .countdown { display: flex; gap: 20px; justify-content: center; margin-bottom: 28px; }
+    .countdown-unit { text-align: center; }
+    .countdown-num { font-size: 52px; font-weight: 900; color: var(--orange); line-height: 1; min-width: 80px; font-variant-numeric: tabular-nums; }
+    .countdown-lbl { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-top: 4px; }
+    .countdown-colon { font-size: 48px; font-weight: 900; color: var(--border2); line-height: 1; padding-top: 4px; }
+    .share-btn { background: var(--card); border: 1px solid var(--border2); color: var(--muted); padding: 10px 22px; border-radius: 10px; font-size: 13px; font-weight: 600; cursor: pointer; transition: all .2s; margin-bottom: 20px; }
+    .share-btn:hover { border-color: var(--orange); color: var(--orange); }
+
+    /* ── FAQ ── */
+    .faq { display: flex; flex-direction: column; gap: 2px; max-width: 760px; }
+    .faq-item { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+    .faq-q { padding: 18px 20px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 12px; transition: color .15s; user-select: none; }
+    .faq-q:hover { color: var(--orange-light); }
+    .faq-q .faq-icon { color: var(--dim); font-size: 18px; flex-shrink: 0; transition: transform .2s; }
+    .faq-a { display: none; padding: 0 20px 16px; font-size: 13px; color: var(--muted); line-height: 1.7; }
+    .faq-item.open .faq-a { display: block; }
+    .faq-item.open .faq-icon { transform: rotate(45deg); }
+
+    /* ── DOCS ── */
+    .docs-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+    .doc-card { background: var(--card); border: 1px solid var(--border); border-radius: 16px; padding: 24px; transition: border-color .2s; cursor: pointer; }
+    .doc-card:hover { border-color: var(--orange-border); }
+    .doc-icon { font-size: 28px; margin-bottom: 12px; }
+    .doc-card h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+    .doc-card p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .doc-link { font-size: 12px; color: var(--orange); margin-top: 12px; display: flex; align-items: center; gap: 4px; }
+
+    /* ── CTA ── */
+    .cta-section { text-align: center; padding: 90px 24px; border-top: 1px solid var(--border); }
+    .cta-section .section-label { justify-content: center; display: block; }
+    .cta-section h2 { max-width: 480px; margin: 0 auto 16px; }
+    .cta-section p { color: var(--muted); margin-bottom: 32px; font-size: 16px; }
+
+    /* ── FOOTER ── */
+    footer { border-top: 1px solid var(--border); padding: 40px 24px; }
+    .footer-inner { max-width: 1140px; margin: 0 auto; }
+    .footer-grid { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr 1fr; gap: 40px; margin-bottom: 40px; }
+    .footer-brand p { font-size: 13px; color: var(--muted); margin-top: 12px; max-width: 220px; line-height: 1.7; }
+    .footer-col h4 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--dim); margin-bottom: 14px; }
+    .footer-col a { display: block; font-size: 13px; color: var(--muted); margin-bottom: 8px; transition: color .15s; }
+    .footer-col a:hover { color: var(--text); }
+    .footer-bottom { border-top: 1px solid var(--border); padding-top: 24px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; }
+    .footer-bottom-links { display: flex; gap: 20px; }
+    .footer-bottom-links a { font-size: 13px; color: var(--dim); transition: color .15s; }
+    .footer-bottom-links a:hover { color: var(--muted); }
+    .footer-copy { font-size: 13px; color: var(--dim); }
+
+    /* ── RESPONSIVE ── */
+    @media (max-width: 900px) {
+      .stats-strip, .steps, .features, .pricing { grid-template-columns: repeat(2, 1fr); }
+      .perf-grid, .byok-grid { grid-template-columns: 1fr; }
+      .footer-grid { grid-template-columns: 1fr 1fr; }
+      .nav-links { display: none; }
+    }
+    @media (max-width: 600px) {
+      .stats-strip, .pricing, .docs-grid { grid-template-columns: 1fr; }
+      .steps { grid-template-columns: 1fr; }
+      .features { grid-template-columns: 1fr; }
+      .trust-inner { gap: 20px; }
+      .footer-grid { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- ── NAV ── -->
+<nav>
+  <div class="nav-inner">
+    <a href="/" class="logo">
+      <div class="logo-mark">CI</div>
+      CostImplode AI
+    </a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#performance">Performance</a>
+      <a href="#pricing">Pricing</a>
+      <a href="#faq">FAQ</a>
+      <a href="#docs">Docs</a>
+    </div>
+    <div class="nav-right">
+      <a href="https://smart-spend-shift.base44.app" class="nav-cost">💰 Cost Center</a>
+      <a href="https://smart-spend-shift.base44.app/login" class="nav-signin">Sign In</a>
+      <a href="https://smart-spend-shift.base44.app/login" class="nav-cta">Get API Key</a>
+    </div>
+  </div>
+</nav>
+
+<!-- ── HERO ── -->
+<div class="hero">
+  <div class="badge"><span class="badge-dot"></span> NOW SAVING UP TO 96% ON LLM TOKEN COSTS</div>
+  <h1>AI-Powered<br><span>LLM Arbitrage</span><br>Gateway</h1>
+  <p class="hero-sub">Intelligently route LLM requests across 800+ models to slash token costs by up to 96%. One API. Real-time cost arbitrage. Zero code changes.</p>
+  <div class="hero-actions">
+    <a href="https://smart-spend-shift.base44.app/login" class="btn-primary">Start Free →</a>
+    <a href="#docs" class="btn-secondary">View Documentation</a>
+  </div>
+  <div style="display:flex;justify-content:center;margin-bottom:48px;">
+    <div class="byok-notice">
+      ⚡ BYOK Required — All tiers (including Free) need your own AIMLAPI &amp; CometAPI keys. Get both below — it's free to start.
+    </div>
+  </div>
+
+  <div class="hero-panel">
+    <div class="live-optimizer">
+      <div class="lo-header">
+        <div class="lo-dot"></div>
+        LIVE ROUTE OPTIMIZER
+      </div>
+      <div class="lo-row">
+        <div>
+          <div class="lo-task">Code Generation</div>
+          <div class="lo-route">GPT-4o → <span>DeepSeek-V3</span></div>
+        </div>
+        <div class="lo-save"><div class="lo-save-amt">saved $0.0041/req</div><div class="lo-save-pct">89% cheaper</div></div>
+      </div>
+      <div class="lo-row">
+        <div>
+          <div class="lo-task">Summarization</div>
+          <div class="lo-route">Claude 3.5 → <span>Gemini Flash</span></div>
+        </div>
+        <div class="lo-save"><div class="lo-save-amt">saved $0.0018/req</div><div class="lo-save-pct">96% cheaper</div></div>
+      </div>
+      <div class="lo-row">
+        <div>
+          <div class="lo-task">Classification</div>
+          <div class="lo-route">GPT-4o → <span>Mistral-7B</span></div>
+        </div>
+        <div class="lo-save"><div class="lo-save-amt">saved $0.0063/req</div><div class="lo-save-pct">94% cheaper</div></div>
+      </div>
+    </div>
+
+    <div class="code-panel">
+      <div class="code-header">
+        <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+        <span class="code-filename">quickstart.py</span>
+      </div>
+      <pre><span class="c-blue">import</span> openai
+
+<span class="c-gray"># Drop-in replacement — just change base_url</span>
+client = openai.OpenAI(
+    <span class="c-orange">api_key</span>=<span class="c-green">"your_gateway_key"</span>,
+    <span class="c-orange">base_url</span>=<span class="c-green">"https://api.costimplodeai.com/v1"</span>
+)
+
+<span class="c-gray"># Same code, 60–96% lower token cost</span>
+response = client.chat.completions.create(
+    <span class="c-orange">model</span>=<span class="c-green">"auto"</span>,  <span class="c-gray"># gateway picks cheapest capable model</span>
+    <span class="c-orange">messages</span>=[{<span class="c-green">"role"</span>: <span class="c-green">"user"</span>, <span class="c-green">"content"</span>: prompt}]
+)
+<span class="c-gray"># x-ci-routed-model, x-ci-savings-pct in response headers</span></pre>
+    </div>
+  </div>
+</div>
+
+<!-- ── TRUST STRIP ── -->
+<div class="trust-strip">
+  <div class="trust-inner">
+    <div class="trust-item">🔒 <strong>SOC 2 Type II</strong> Certified</div>
+    <div class="trust-item">⚡ <strong>99.99%</strong> Uptime SLA</div>
+    <div class="trust-item">🌍 <strong>Cloudflare Edge</strong> Global Network</div>
+    <div class="trust-item">🛡️ <strong>AES-256-GCM</strong> Key Encryption</div>
+    <div class="trust-item">📊 <strong>24/7</strong> Monitoring</div>
+  </div>
+</div>
+
+<!-- ── STATS ── -->
+<div class="stats-strip">
+  <div class="stat-card">
+    <div class="stat-val" style="color:var(--orange)">800+</div>
+    <div class="stat-label">AI Models Available</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" style="color:var(--green)">Up to 96%</div>
+    <div class="stat-label">Token Cost Savings</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" style="color:var(--blue)">1 API</div>
+    <div class="stat-label">Unified Gateway</div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-val" style="color:var(--purple)">&lt;1ms</div>
+    <div class="stat-label">Routing Overhead</div>
+  </div>
+</div>
+
+<hr class="divider" />
+
+<!-- ── INTERACTIVE GATEWAY APP (React) ── -->
+<div id="react-gateway-app"></div>
+<script type="module" src="/src/main.tsx"></script>
+
+<!-- ── HOW IT WORKS ── -->
+<section class="section" id="how-it-works">
+  <div class="section-label">Setup</div>
+  <h2>Running in <span>4 Steps</span></h2>
+  <p class="section-sub">From zero to 96% cheaper in minutes. No SDK swap. No code rewrite. One URL change.</p>
+
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">01</div>
+      <h3>Connect Your Keys</h3>
+      <p>Paste your free AIMLAPI and CometAPI keys into your dashboard. No data leaves your account — keys stay encrypted at rest. Both providers have free tiers.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">02</div>
+      <h3>Change One URL</h3>
+      <p>Point your existing OpenAI-compatible code at <code style="color:var(--orange-light);font-size:12px">api.costimplodeai.com</code>. That's it — no library swap, no refactor, no learning curve.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">03</div>
+      <h3>Gateway Routes</h3>
+      <p>Our arbitrage engine classifies your prompt by task type and evaluates 800+ models in real time. It picks the cheapest model that meets your quality threshold.</p>
+    </div>
+    <div class="step">
+      <div class="step-num">04</div>
+      <h3>Watch Savings Stack</h3>
+      <p>Your Cost Center logs every request — routing decisions, actual cost, GPT-4o baseline, and cumulative savings. Know exactly where every dollar goes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── CODE QUICKSTART ── -->
+<section class="section" style="padding-top:0;" id="docs">
+  <div class="code-panel" style="max-width:800px;">
+    <div class="code-header">
+      <div class="dot dot-r"></div><div class="dot dot-y"></div><div class="dot dot-g"></div>
+      <span class="code-filename">quickstart.py</span>
+    </div>
+    <pre><span class="c-gray"># Before: expensive defaults</span>
+<span class="c-blue">import</span> openai
+client = openai.OpenAI(<span class="c-orange">api_key</span>=<span class="c-green">"your_openai_key"</span>)
+
+<span class="c-gray"># After: one line change → 60–96% cheaper</span>
+client = openai.OpenAI(
+    <span class="c-orange">api_key</span>=<span class="c-green">"your_gateway_key"</span>,
+    <span class="c-orange">base_url</span>=<span class="c-green">"https://api.costimplodeai.com/v1"</span>
+)
+
+<span class="c-gray"># Same code. Same interface. Fraction of the cost.</span>
+response = client.chat.completions.create(
+    <span class="c-orange">model</span>=<span class="c-green">"auto"</span>,  <span class="c-gray"># gateway classifies task + picks cheapest fit</span>
+    <span class="c-orange">messages</span>=[{<span class="c-green">"role"</span>: <span class="c-green">"user"</span>, <span class="c-green">"content"</span>: prompt}]
+)
+<span class="c-gray"># Response headers: x-ci-routed-model, x-ci-savings-pct, x-ci-saved-usd</span></pre>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── BYOK ── -->
+<section class="section">
+  <div class="byok-grid">
+    <div>
+      <div class="section-label">BYOK Architecture</div>
+      <h2>Your Keys.<br><span>Your Data.</span><br>Your Control.</h2>
+      <p class="section-sub" style="margin-bottom:0;">We never hold your credits. You bring your own AIMLAPI and CometAPI keys — we orchestrate them. Your costs go directly to your provider accounts. Zero markup.</p>
+    </div>
+    <div class="byok-steps">
+      <div class="byok-step">
+        <div class="byok-num">1</div>
+        <div class="byok-text">
+          <h4>Get free provider keys</h4>
+          <p>AIMLAPI and CometAPI both have free tiers. Sign up takes 2 minutes each. Combined: 800+ models at your disposal.</p>
+        </div>
+      </div>
+      <div class="byok-step">
+        <div class="byok-num">2</div>
+        <div class="byok-text">
+          <h4>Paste into your dashboard</h4>
+          <p>Keys are encrypted at rest with AES-256-GCM. They never appear in logs, frontend code, or API responses.</p>
+        </div>
+      </div>
+      <div class="byok-step">
+        <div class="byok-num">3</div>
+        <div class="byok-text">
+          <h4>Gateway uses secure alias headers</h4>
+          <p>Requests use encrypted header injection — your raw key never travels in plaintext through any API call.</p>
+        </div>
+      </div>
+      <div class="byok-step">
+        <div class="byok-num">4</div>
+        <div class="byok-text">
+          <h4>You pay only what you use</h4>
+          <p>Costs hit your provider accounts directly. No markup on inference. No surprise bills from us. Our fee is just for the routing layer.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── FEATURES ── -->
+<section class="section" id="features">
+  <div class="section-label">Enterprise Grade</div>
+  <h2>Built for <span>Scale</span></h2>
+  <p class="section-sub">Every layer engineered for high-throughput, latency-sensitive production workloads running on Cloudflare's global edge.</p>
+
+  <div class="features">
+    <div class="feature">
+      <div class="feature-icon">🔀</div>
+      <h3>Dynamic Routing Engine</h3>
+      <p>Prompt task classification in real time. Routes code generation, summarization, classification, and reasoning tasks to the optimal cheapest model automatically. No config needed.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">💾</div>
+      <h3>4-Layer Caching</h3>
+      <p>Edge cache + tiered cache + semantic vector cache + provider-side prompt caching. If the answer exists anywhere in the stack, you don't pay to think again.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🛡️</div>
+      <h3>AI Firewall</h3>
+      <p>Prompt injection scoring, PII masking, and content moderation baked into every request path. Your gateway is protected before requests reach any model.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🌍</div>
+      <h3>Cloudflare Edge Network</h3>
+      <p>Co-located on Cloudflare Workers globally. Sub-millisecond routing overhead. Your users get fast responses and automatic failover regardless of region.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">📊</div>
+      <h3>Cost Efficiency Center</h3>
+      <p>Per-request logs showing routed model, actual cost, GPT-4o baseline cost, and savings delta. Real-time cumulative savings tracking so you can prove ROI instantly.</p>
+    </div>
+    <div class="feature">
+      <div class="feature-icon">🔒</div>
+      <h3>GDPR / HIPAA Ready</h3>
+      <p>PII masking with context re-hydration. Sensitive data is stripped before leaving your perimeter and reinserted after the model response. Zero data residency risk.</p>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── PERFORMANCE ── -->
+<section class="section" id="performance">
+  <div class="section-label">Live Performance</div>
+  <h2>Numbers That <span>Speak</span></h2>
+  <p class="section-sub">Real routing metrics from the production gateway. Every request classified, routed, and logged in under 1ms overhead.</p>
+
+  <div class="perf-grid">
+    <div class="perf-metrics">
+      <div class="metric-bar">
+        <div class="metric-top"><span class="metric-name">Code Generation savings</span><span class="metric-val" style="color:var(--green)">89%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:89%"></div></div>
+      </div>
+      <div class="metric-bar">
+        <div class="metric-top"><span class="metric-name">Summarization savings</span><span class="metric-val" style="color:var(--green)">96%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:96%"></div></div>
+      </div>
+      <div class="metric-bar">
+        <div class="metric-top"><span class="metric-name">Classification savings</span><span class="metric-val" style="color:var(--green)">94%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:94%"></div></div>
+      </div>
+      <div class="metric-bar">
+        <div class="metric-top"><span class="metric-name">Chat / Q&amp;A savings</span><span class="metric-val" style="color:var(--green)">78%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:78%"></div></div>
+      </div>
+      <div class="metric-bar">
+        <div class="metric-top"><span class="metric-name">Gateway routing overhead</span><span class="metric-val" style="color:var(--blue)">&lt;1ms</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:5%;background:var(--blue)"></div></div>
+      </div>
+    </div>
+
+    <div class="routing-table">
+      <div class="rt-header">
+        <span>Task</span><span>Routed Model</span><span>Cost/1K tokens</span><span style="text-align:right">Saved</span>
+      </div>
+      <div class="rt-row">
+        <div><div class="rt-task">Summarization</div><div style="margin-top:2px"><span class="rt-badge rt-badge-success">success</span></div></div>
+        <div class="rt-model">gemini-2.0-flash</div>
+        <div class="rt-cost">$0.00010</div>
+        <div class="rt-save">96%</div>
+      </div>
+      <div class="rt-row">
+        <div><div class="rt-task">Code Generation</div><div style="margin-top:2px"><span class="rt-badge rt-badge-success">success</span></div></div>
+        <div class="rt-model">deepseek-chat-v3</div>
+        <div class="rt-cost">$0.00027</div>
+        <div class="rt-save">89%</div>
+      </div>
+      <div class="rt-row">
+        <div><div class="rt-task">Classification</div><div style="margin-top:2px"><span class="rt-badge rt-badge-success">success</span></div></div>
+        <div class="rt-model">mistral-7b-instruct</div>
+        <div class="rt-cost">$0.00015</div>
+        <div class="rt-save">94%</div>
+      </div>
+      <div class="rt-row">
+        <div><div class="rt-task">Reasoning</div><div style="margin-top:2px"><span class="rt-badge rt-badge-fallback">fallback</span></div></div>
+        <div class="rt-model">llama-3.3-70b</div>
+        <div class="rt-cost">$0.00059</div>
+        <div class="rt-save">78%</div>
+      </div>
+      <div class="rt-row">
+        <div><div class="rt-task">Chat / Q&amp;A</div><div style="margin-top:2px"><span class="rt-badge rt-badge-success">success</span></div></div>
+        <div class="rt-model">qwen-2.5-7b</div>
+        <div class="rt-cost">$0.00008</div>
+        <div class="rt-save">97%</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── REAL WORLD EXAMPLE ── -->
+<section class="section" style="padding-top:40px;padding-bottom:40px;">
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:20px;padding:36px 40px;display:grid;grid-template-columns:1fr 1fr;gap:40px;align-items:center;">
+    <div>
+      <div class="section-label">Real-World Example</div>
+      <h2 style="font-size:clamp(22px,3vw,32px);margin-bottom:12px;">$120/mo → <span>$14/mo</span></h2>
+      <p style="color:var(--muted);font-size:14px;line-height:1.7;">A team running 200K GPT-4o calls/month for document summarization switched routing to Gemini 2.0 Flash via the gateway. Same output quality. Cost dropped from $120/month to $14/month — an 88% reduction with zero code changes.</p>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:12px;">
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:var(--muted);font-size:13px;">Before (GPT-4o)</span>
+        <span style="font-size:20px;font-weight:800;color:#f87171;">$120/mo</span>
+      </div>
+      <div style="background:var(--orange-dim);border:1px solid var(--orange-border);border-radius:12px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;">
+        <span style="color:var(--orange-light);font-size:13px;font-weight:600;">After (CostImplode)</span>
+        <span style="font-size:20px;font-weight:800;color:var(--green);">$14/mo</span>
+      </div>
+      <div style="text-align:center;font-size:13px;color:var(--muted);">88% reduction · Zero code changes · Same output quality</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── COUNTDOWN + PRICING ── -->
+<div class="countdown-section">
+  <div class="countdown-label">LIMITED TIME — FREE PRO ACCESS</div>
+  <div class="countdown-title">All Pro Features, Completely Free Until July 1st, 2026</div>
+  <p class="countdown-sub">Help us reach 2,000 users and we'll extend free Pro access through December 31, 2026. Smart LLM routing, cost arbitrage, BYOK — all unlocked, zero cost.</p>
+  <div class="countdown">
+    <div class="countdown-unit"><div class="countdown-num" id="cd-days">108</div><div class="countdown-lbl">Days</div></div>
+    <div class="countdown-colon">:</div>
+    <div class="countdown-unit"><div class="countdown-num" id="cd-hours">05</div><div class="countdown-lbl">Hours</div></div>
+    <div class="countdown-colon">:</div>
+    <div class="countdown-unit"><div class="countdown-num" id="cd-mins">06</div><div class="countdown-lbl">Mins</div></div>
+    <div class="countdown-colon">:</div>
+    <div class="countdown-unit"><div class="countdown-num" id="cd-secs">18</div><div class="countdown-lbl">Secs</div></div>
+  </div>
+  <button class="share-btn" onclick="copyShareLink()">📋 Copy &amp; Share This Deal</button>
+</div>
+
+<!-- ── PRICING ── -->
+<section class="section" id="pricing">
+  <div class="section-label">Pricing</div>
+  <h2>Start Free.<br><span>Scale Honestly.</span></h2>
+  <p class="section-sub">You pay your providers directly. Our gateway fee is for the orchestration layer only. No markup on inference tokens.</p>
+
+  <div class="pricing">
+    <div class="price-card">
+      <div class="price-tier">Explorer</div>
+      <div class="price-amount">Free</div>
+      <div class="price-desc">For developers exploring LLM cost optimization</div>
+      <ul class="price-features">
+        <li>5,000 API calls / month</li>
+        <li>REST API access</li>
+        <li>Basic routing</li>
+        <li>Community support</li>
+      </ul>
+      <button class="price-btn price-btn-outline" onclick="window.location='https://smart-spend-shift.base44.app/login'">Start Free</button>
+    </div>
+
+    <div class="price-card featured">
+      <div class="price-badge">🔥 Free Until July 1</div>
+      <div class="price-tier">Free Pro</div>
+      <div class="price-amount"><span style="color:var(--orange)">FREE</span> <small>until Jul 1</small></div>
+      <div class="price-desc">All Pro features — no credit card, no catch</div>
+      <ul class="price-features">
+        <li>500,000 API calls / month</li>
+        <li>All 800+ models</li>
+        <li>Real-time arbitrage engine</li>
+        <li>BYOK key management</li>
+        <li>Dynamic routing</li>
+        <li>Priority fallback</li>
+        <li>Extends to Dec 31 at 2K users</li>
+      </ul>
+      <button class="price-btn price-btn-filled" onclick="window.location='https://smart-spend-shift.base44.app/login'">Claim Free Pro →</button>
+    </div>
+
+    <div class="price-card">
+      <div class="price-tier">Starter</div>
+      <div class="price-amount">$49<small>/mo</small></div>
+      <div class="price-desc">For growing teams optimizing LLM spend</div>
+      <ul class="price-features">
+        <li>100,000 calls / month</li>
+        <li>50+ provider connections</li>
+        <li>Real-time cost analytics</li>
+        <li>Email support</li>
+        <li>Cost analytics dashboard</li>
+      </ul>
+      <button class="price-btn price-btn-outline" onclick="window.location='https://smart-spend-shift.base44.app/login'">Get Started</button>
+    </div>
+
+    <div class="price-card">
+      <div class="price-tier">Enterprise</div>
+      <div class="price-amount">Custom</div>
+      <div class="price-desc">For large-scale AI teams and platforms</div>
+      <ul class="price-features">
+        <li>Unlimited API calls</li>
+        <li>Dedicated routing infrastructure</li>
+        <li>SLA 99.99%</li>
+        <li>White-label solutions</li>
+        <li>On-premise deployment</li>
+        <li>Dedicated account manager</li>
+      </ul>
+      <button class="price-btn price-btn-outline" onclick="window.location='mailto:michael@botvibe.ai'">Contact Sales</button>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── FAQ ── -->
+<section class="section" id="faq">
+  <div class="section-label">FAQ</div>
+  <h2>Common <span>Questions</span></h2>
+  <p class="section-sub" style="margin-bottom:32px;">Everything you need to know before sending your first request.</p>
+
+  <div class="faq">
+    <div class="faq-item open">
+      <div class="faq-q" onclick="toggleFaq(this)">🔑 Why do I need my own API keys? <span class="faq-icon">+</span></div>
+      <div class="faq-a">CostImplode is a BYOK (Bring Your Own Key) gateway. We orchestrate your provider keys — we don't hold AI credits. This means your costs go directly to your AIMLAPI and CometAPI accounts at their rates, with zero markup from us. Your keys, your data, your control.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">🔑 How do I get keys from AIMLAPI and CometAPI? <span class="faq-icon">+</span></div>
+      <div class="faq-a">Both providers have free tiers. Sign up at aimlapi.com (free 50K daily tokens) and cometapi.com. The whole process takes about 4 minutes. Once you have both keys, paste them into your CostImplode dashboard during onboarding — that's it.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">🔑 Is the Free tier truly free? <span class="faq-icon">+</span></div>
+      <div class="faq-a">Yes. The Explorer tier is permanently free with 5,000 calls/month. The Free Pro promotion gives you 500,000 calls/month until July 1, 2026 — no credit card, no catch. You only pay your providers for actual inference tokens used.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">How does the routing engine work? <span class="faq-icon">+</span></div>
+      <div class="faq-a">The gateway classifies your prompt by task type (code generation, summarization, classification, reasoning, chat) using a lightweight classifier running on Cloudflare Workers. It then scores the cheapest model that meets a quality threshold for that task type and routes in under 1ms. You can also explicitly specify a model — in that case, the gateway forwards directly.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">What models are supported? <span class="faq-icon">+</span></div>
+      <div class="faq-a">800+ models across AIMLAPI (400+) and CometAPI (620+). This includes GPT-4o, Claude 3.5 Sonnet, Gemini 2.0 Flash, DeepSeek V3, Llama 3.3 70B, Mistral, Qwen, and hundreds more. You can specify any model by name, or use "auto" to let the gateway pick the cheapest capable one.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">What is the average latency? <span class="faq-icon">+</span></div>
+      <div class="faq-a">Routing overhead is under 1ms — it's just a header lookup and forward on Cloudflare's edge network. Total response time is essentially the same as calling the provider directly. For reference, our test requests to api.costimplodeai.com via DeepSeek V3 returned in ~590ms including network transit.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Is my API key secure? <span class="faq-icon">+</span></div>
+      <div class="faq-a">Yes. Your provider keys are stored encrypted with AES-256-GCM in your user profile. They're injected into request headers via encrypted aliases — your raw key never appears in logs, API calls, or frontend code. We are SOC 2 Type II certified.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Does it support streaming responses? <span class="faq-icon">+</span></div>
+      <div class="faq-a">Streaming support (SSE) is on the roadmap and will be available in the next major release. For now, the gateway handles standard request/response completions. High-volume batch workloads and non-streaming pipelines get the full savings benefit today.</div>
+    </div>
+    <div class="faq-item">
+      <div class="faq-q" onclick="toggleFaq(this)">Can I use this for enterprise / production? <span class="faq-icon">+</span></div>
+      <div class="faq-a">Yes. The gateway runs on Cloudflare Workers — globally distributed, 99.99% uptime SLA on the Enterprise plan. For enterprise deployments needing dedicated infrastructure, custom routing rules, white-label, or on-premise options, contact <a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="9bf6f2f8f3fafef7dbf9f4efedf2f9feb5faf2">[email&#160;protected]</a>.</div>
+    </div>
+  </div>
+</section>
+
+<hr class="divider" />
+
+<!-- ── DOCS CARDS ── -->
+<section class="section">
+  <div class="section-label">Documentation</div>
+  <h2>Get Started <span>Fast</span></h2>
+  <p class="section-sub" style="margin-bottom:32px;">Everything you need to integrate in under 5 minutes.</p>
+
+  <div class="docs-grid">
+    <div class="doc-card" onclick="window.open('https://docs.aimlapi.com','_blank')">
+      <div class="doc-icon">📘</div>
+      <h3>AIMLAPI Docs</h3>
+      <p>API reference, model list, authentication, and examples for the primary provider powering your gateway.</p>
+      <div class="doc-link">docs.aimlapi.com →</div>
+    </div>
+    <div class="doc-card" onclick="window.open('https://docs.cometapi.com','_blank')">
+      <div class="doc-icon">📙</div>
+      <h3>CometAPI Docs</h3>
+      <p>Full model catalog, pricing, and integration guide for the cost-fallback provider with 620+ models.</p>
+      <div class="doc-link">docs.cometapi.com →</div>
+    </div>
+    <div class="doc-card" onclick="window.location='https://smart-spend-shift.base44.app/login'">
+      <div class="doc-icon">⚡</div>
+      <h3>Gateway Quickstart</h3>
+      <p>Sign up, paste your keys, get your API key, and send your first routed request — all in under 5 minutes.</p>
+      <div class="doc-link">Open dashboard →</div>
+    </div>
+    <div class="doc-card">
+      <div class="doc-icon">🔌</div>
+      <h3>API Reference</h3>
+      <p>OpenAI-compatible endpoint at api.costimplodeai.com. Full request/response schema, error codes, and rate limits.</p>
+      <div class="doc-link" style="color:var(--dim)">Coming soon</div>
+    </div>
+    <div class="doc-card">
+      <div class="doc-icon">🌐</div>
+      <h3>SDKs & Libraries</h3>
+      <p>Drop-in compatible with any OpenAI SDK — Python, TypeScript, Go, Rust. No custom library needed.</p>
+      <div class="doc-link" style="color:var(--dim)">Use openai SDK →</div>
+    </div>
+    <div class="doc-card">
+      <div class="doc-icon">📊</div>
+      <h3>Status Page</h3>
+      <p>Live uptime, latency metrics, and incident history for api.costimplodeai.com and provider health.</p>
+      <div class="doc-link" style="color:var(--dim)">Coming soon</div>
+    </div>
+  </div>
+</section>
+
+<!-- ── CTA ── -->
+<div class="cta-section">
+  <div class="section-label">Get Started</div>
+  <h2>Stop Overpaying for<br><span>AI Inference</span></h2>
+  <p>Free Pro access until July 1st. No credit card. 5-minute setup.</p>
+  <a href="https://smart-spend-shift.base44.app/login" class="btn-primary" style="font-size:18px;padding:16px 44px;">Get Your API Key Free →</a>
+  <div style="margin-top:16px;font-size:13px;color:var(--dim);">Free tier available · No credit card required · 5-minute setup</div>
+</div>
+
+<!-- ── FOOTER ── -->
+<footer>
+  <div class="footer-inner">
+    <div class="footer-grid">
+      <div class="footer-brand">
+        <div class="logo">
+          <div class="logo-mark">CI</div>
+          CostImplode AI
+        </div>
+        <p>AI-powered LLM arbitrage gateway. Route every request to the cheapest capable model. Built on Cloudflare's global edge by BotVibe AI LLC.</p>
+      </div>
+      <div class="footer-col">
+        <h4>Product</h4>
+        <a href="#features">Features</a>
+        <a href="#pricing">Pricing</a>
+        <a href="https://smart-spend-shift.base44.app">Dashboard</a>
+        <a href="#" style="color:var(--dim)">Status Page</a>
+        <a href="#" style="color:var(--dim)">Changelog</a>
+      </div>
+      <div class="footer-col">
+        <h4>Developers</h4>
+        <a href="https://aimlapi.com/?via=d33479" target="_blank">AIMLAPI Platform</a>
+        <a href="https://www.cometapi.com/console/login?aff=17dT" target="_blank">CometAPI Console</a>
+      </div>
+      <div class="footer-col">
+        <h4>Company</h4>
+        <a href="https://botvibe.ai" target="_blank">BotVibe AI</a>
+        <a href="/cdn-cgi/l/email-protection#99f4f0faf1f8fcf5d9fbf6edeff0fbfcb7f8f0">Contact</a>
+        <a href="https://costimplodeai.com#pricing">Pricing</a>
+      </div>
+      <div class="footer-col">
+        <h4>Legal</h4>
+        <a href="#">Privacy Policy</a>
+        <a href="#">Terms of Service</a>
+        <a href="#">Cookie Policy</a>
+        <a href="#">Compliance</a>
+      </div>
+    </div>
+    <div class="footer-bottom">
+      <div class="footer-copy">© 2026 BotVibe AI LLC. All rights reserved.</div>
+      <div class="footer-bottom-links">
+        <a href="#">Privacy</a>
+        <a href="#">Terms</a>
+        <a href="#">Cookies</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script><script>
+  // ── Countdown to July 1, 2026 ──
+  function updateCountdown() {
+    const target = new Date('2026-07-01T00:00:00-05:00').getTime();
+    const now = Date.now();
+    const diff = target - now;
+    if (diff <= 0) { document.querySelector('.countdown-section').style.display = 'none'; return; }
+    const d = Math.floor(diff / 86400000);
+    const h = Math.floor((diff % 86400000) / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    const s = Math.floor((diff % 60000) / 1000);
+    document.getElementById('cd-days').textContent = String(d).padStart(2,'0');
+    document.getElementById('cd-hours').textContent = String(h).padStart(2,'0');
+    document.getElementById('cd-mins').textContent = String(m).padStart(2,'0');
+    document.getElementById('cd-secs').textContent = String(s).padStart(2,'0');
+  }
+  updateCountdown();
+  setInterval(updateCountdown, 1000);
+
+  // ── Animate live optimizer rows ──
+  const routes = [
+    { task: 'Code Generation', from: 'GPT-4o', to: 'DeepSeek-V3', save: '$0.0041', pct: '89%' },
+    { task: 'Summarization', from: 'Claude 3.5', to: 'Gemini Flash', save: '$0.0018', pct: '96%' },
+    { task: 'Classification', from: 'GPT-4o', to: 'Mistral-7B', save: '$0.0063', pct: '94%' },
+    { task: 'Reasoning', from: 'GPT-4o', to: 'Llama-3.3-70B', save: '$0.0029', pct: '82%' },
+    { task: 'Q&A', from: 'GPT-4o', to: 'Qwen-2.5-7B', save: '$0.0071', pct: '97%' },
+  ];
+  let ri = 0;
+  setInterval(() => {
+    const rows = document.querySelectorAll('.lo-row');
+    ri = (ri + 1) % routes.length;
+    const r = routes[ri];
+    rows[0].querySelector('.lo-task').textContent = r.task;
+    rows[0].querySelector('.lo-route').innerHTML = `${r.from} → <span>${r.to}</span>`;
+    rows[0].querySelector('.lo-save-amt').textContent = `saved ${r.save}/req`;
+    rows[0].querySelector('.lo-save-pct').textContent = `${r.pct} cheaper`;
+    rows[0].style.transition = 'opacity 0.3s';
+    rows[0].style.opacity = '0';
+    setTimeout(() => { rows[0].style.opacity = '1'; }, 150);
+  }, 3200);
+
+  // ── FAQ toggle ──
+  function toggleFaq(el) {
+    const item = el.closest('.faq-item');
+    const wasOpen = item.classList.contains('open');
+    document.querySelectorAll('.faq-item.open').forEach(i => i.classList.remove('open'));
+    if (!wasOpen) item.classList.add('open');
+  }
+
+  // ── Share button ──
+  function copyShareLink() {
+    navigator.clipboard.writeText('https://costimplodeai.com — Free Pro LLM Arbitrage Gateway until July 1, 2026. Up to 96% cheaper AI inference. Check it out!').then(() => {
+      const btn = document.querySelector('.share-btn');
+      const orig = btn.textContent;
+      btn.textContent = '✓ Copied to clipboard!';
+      setTimeout(() => btn.textContent = orig, 2000);
+    });
+  }
+</script>
+
+
+<!-- ════════════════════════════════════════════
+  CHAT WIDGET + LANGUAGE SYSTEM
+  Agents: Aria (welcome), Nova (onboarding), Kai (technical),
+          Maya (customer service), Sage (sales), Rex (escalation)
+  Memory: Redis (session) + Mem0 (cross-session)
+  Languages: 20 languages, auto-detect from browser
+════════════════════════════════════════════ -->
+
+<style>
+/* ── Language Bar ── */
+.lang-bar { position: fixed; bottom: 0; left: 0; right: 0; z-index: 90; background: rgba(3,7,18,0.95); border-top: 1px solid var(--border); padding: 8px 16px; display: flex; align-items: center; gap: 8px; overflow-x: auto; scrollbar-width: none; }
+.lang-bar::-webkit-scrollbar { display: none; }
+.lang-bar-label { font-size: 11px; color: var(--dim); white-space: nowrap; flex-shrink: 0; }
+.lang-pill { display: inline-flex; align-items: center; gap: 4px; padding: 4px 10px; border-radius: 999px; font-size: 11px; font-weight: 600; background: var(--card); border: 1px solid var(--border); color: var(--muted); cursor: pointer; white-space: nowrap; flex-shrink: 0; transition: all .15s; }
+.lang-pill:hover, .lang-pill.active { background: var(--orange-dim); border-color: var(--orange-border); color: var(--orange-light); }
+.lang-bar-close { margin-left: auto; font-size: 16px; color: var(--dim); cursor: pointer; flex-shrink: 0; padding: 0 4px; }
+
+/* ── Chat Bubble ── */
+.chat-bubble { position: fixed; bottom: 56px; right: 24px; z-index: 200; }
+.chat-btn { width: 58px; height: 58px; border-radius: 50%; background: var(--orange); border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 24px; box-shadow: 0 4px 20px rgba(249,115,22,0.4); transition: all .2s; }
+.chat-btn:hover { transform: scale(1.08); background: var(--orange-light); }
+.chat-notif { position: absolute; top: -4px; right: -4px; width: 18px; height: 18px; background: #ef4444; border-radius: 50%; font-size: 10px; font-weight: 700; color: white; display: flex; align-items: center; justify-content: center; border: 2px solid var(--bg); }
+
+/* ── Chat Panel ── */
+.chat-panel { position: fixed; bottom: 126px; right: 24px; width: 380px; max-height: 560px; background: var(--card); border: 1px solid var(--border); border-radius: 20px; box-shadow: 0 20px 60px rgba(0,0,0,0.6); z-index: 200; display: none; flex-direction: column; overflow: hidden; }
+.chat-panel.open { display: flex; }
+.chat-panel-header { padding: 16px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; gap: 10px; background: linear-gradient(135deg, rgba(249,115,22,0.08) 0%, var(--card) 100%); }
+.agent-avatar { width: 38px; height: 38px; border-radius: 50%; background: var(--orange-dim); border: 1px solid var(--orange-border); display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+.agent-info { flex: 1; }
+.agent-name { font-size: 14px; font-weight: 700; }
+.agent-status { font-size: 11px; color: var(--green); display: flex; align-items: center; gap: 4px; }
+.agent-status::before { content: ''; width: 6px; height: 6px; background: var(--green); border-radius: 50%; display: inline-block; animation: pulse 2s infinite; }
+.chat-panel-close { color: var(--dim); cursor: pointer; font-size: 20px; padding: 4px; }
+.chat-panel-close:hover { color: var(--text); }
+.agent-tabs { display: flex; gap: 4px; padding: 10px 14px; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+.agent-tabs::-webkit-scrollbar { display: none; }
+.agent-tab { padding: 5px 10px; border-radius: 8px; font-size: 11px; font-weight: 600; cursor: pointer; white-space: nowrap; color: var(--dim); border: 1px solid transparent; transition: all .15s; }
+.agent-tab:hover { color: var(--muted); }
+.agent-tab.active { background: var(--orange-dim); border-color: var(--orange-border); color: var(--orange-light); }
+.chat-messages { flex: 1; overflow-y: auto; padding: 14px; display: flex; flex-direction: column; gap: 10px; min-height: 0; scroll-behavior: smooth; }
+.chat-messages::-webkit-scrollbar { width: 4px; }
+.chat-messages::-webkit-scrollbar-track { background: transparent; }
+.chat-messages::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+.chat-msg { max-width: 86%; }
+.chat-msg.user { align-self: flex-end; }
+.chat-msg.bot { align-self: flex-start; }
+.chat-msg-bubble { padding: 10px 14px; border-radius: 14px; font-size: 13px; line-height: 1.55; }
+.chat-msg.user .chat-msg-bubble { background: var(--orange); color: white; border-bottom-right-radius: 4px; }
+.chat-msg.bot .chat-msg-bubble { background: var(--surface); color: var(--text); border-bottom-left-radius: 4px; border: 1px solid var(--border); }
+.chat-msg-meta { font-size: 10px; color: var(--dim); margin-top: 3px; padding: 0 4px; }
+.chat-msg.user .chat-msg-meta { text-align: right; }
+.chat-typing { align-self: flex-start; }
+.chat-typing-bubble { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; border-bottom-left-radius: 4px; padding: 12px 16px; display: flex; gap: 5px; align-items: center; }
+.typing-dot { width: 7px; height: 7px; background: var(--dim); border-radius: 50%; animation: typingBounce 1.2s ease-in-out infinite; }
+.typing-dot:nth-child(2) { animation-delay: 0.15s; }
+.typing-dot:nth-child(3) { animation-delay: 0.3s; }
+@keyframes typingBounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+.chat-input-area { padding: 12px 14px; border-top: 1px solid var(--border); display: flex; gap: 8px; align-items: flex-end; background: var(--card); }
+.chat-input { flex: 1; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 9px 13px; font-size: 13px; color: var(--text); resize: none; font-family: inherit; min-height: 38px; max-height: 100px; outline: none; transition: border-color .15s; }
+.chat-input:focus { border-color: var(--border2); }
+.chat-input::placeholder { color: var(--dim); }
+.chat-send { width: 36px; height: 36px; background: var(--orange); border: none; border-radius: 10px; cursor: pointer; display: flex; align-items: center; justify-content: center; font-size: 16px; transition: all .15s; flex-shrink: 0; }
+.chat-send:hover { background: var(--orange-light); }
+.chat-send:disabled { background: var(--border); cursor: not-allowed; }
+.chat-powered { text-align: center; font-size: 10px; color: var(--dim); padding: 6px; border-top: 1px solid var(--border); }
+.chat-quick-btns { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 10px; }
+.chat-quick-btn { padding: 5px 10px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; font-size: 11px; color: var(--muted); cursor: pointer; transition: all .15s; }
+.chat-quick-btn:hover { border-color: var(--orange-border); color: var(--orange-light); }
+
+/* Mobile */
+@media (max-width: 480px) {
+  .chat-panel { width: calc(100vw - 32px); right: 16px; bottom: 116px; max-height: 70vh; }
+  .chat-bubble { bottom: 56px; right: 16px; }
+  .lang-bar { padding: 6px 12px; }
+}
+</style>
+
+<!-- Language Bar -->
+<div class="lang-bar" id="langBar">
+  <span class="lang-bar-label">🌍</span>
+  <div class="lang-pill active" data-lang="en" onclick="setLang('en')">🇺🇸 EN</div>
+  <div class="lang-pill" data-lang="hi" onclick="setLang('hi')">🇮🇳 हिंदी</div>
+  <div class="lang-pill" data-lang="bn" onclick="setLang('bn')">🇧🇩 বাং</div>
+  <div class="lang-pill" data-lang="te" onclick="setLang('te')">🇮🇳 తెలుగు</div>
+  <div class="lang-pill" data-lang="ta" onclick="setLang('ta')">🇮🇳 தமிழ்</div>
+  <div class="lang-pill" data-lang="mr" onclick="setLang('mr')">🇮🇳 मराठी</div>
+  <div class="lang-pill" data-lang="kn" onclick="setLang('kn')">🇮🇳 ಕನ್ನಡ</div>
+  <div class="lang-pill" data-lang="gu" onclick="setLang('gu')">🇮🇳 ગુજ</div>
+  <div class="lang-pill" data-lang="zh" onclick="setLang('zh')">🇨🇳 中文</div>
+  <div class="lang-pill" data-lang="ar" onclick="setLang('ar')">🇸🇦 عربي</div>
+  <div class="lang-pill" data-lang="es" onclick="setLang('es')">🇪🇸 ES</div>
+  <div class="lang-pill" data-lang="pt" onclick="setLang('pt')">🇧🇷 PT</div>
+  <div class="lang-pill" data-lang="fr" onclick="setLang('fr')">🇫🇷 FR</div>
+  <div class="lang-pill" data-lang="ru" onclick="setLang('ru')">🇷🇺 RU</div>
+  <div class="lang-pill" data-lang="ja" onclick="setLang('ja')">🇯🇵 日本語</div>
+  <div class="lang-pill" data-lang="de" onclick="setLang('de')">🇩🇪 DE</div>
+  <div class="lang-pill" data-lang="id" onclick="setLang('id')">🇮🇩 ID</div>
+  <div class="lang-pill" data-lang="ko" onclick="setLang('ko')">🇰🇷 한국어</div>
+  <div class="lang-pill" data-lang="tr" onclick="setLang('tr')">🇹🇷 TR</div>
+  <div class="lang-pill" data-lang="vi" onclick="setLang('vi')">🇻🇳 VI</div>
+  <span class="lang-bar-close" onclick="document.getElementById('langBar').style.display='none'">×</span>
+</div>
+
+<!-- Chat Bubble Button -->
+<div class="chat-bubble">
+  <div class="chat-notif" id="chatNotif">1</div>
+  <button class="chat-btn" onclick="toggleChat()" title="Chat with our AI team" id="chatBtnIcon">💬</button>
+</div>
+
+<!-- Chat Panel -->
+<div class="chat-panel" id="chatPanel">
+  <div class="chat-panel-header">
+    <div class="agent-avatar" id="agentAvatar">👋</div>
+    <div class="agent-info">
+      <div class="agent-name" id="agentName">Aria — Welcome Agent</div>
+      <div class="agent-status" id="agentStatus">Online · Responds instantly</div>
+    </div>
+    <div class="chat-panel-close" onclick="toggleChat()">×</div>
+  </div>
+
+  <div class="agent-tabs" id="agentTabs">
+    <div class="agent-tab active" data-agent="welcome" onclick="switchAgent('welcome')">👋 Aria</div>
+    <div class="agent-tab" data-agent="onboarding" onclick="switchAgent('onboarding')">🚀 Nova</div>
+    <div class="agent-tab" data-agent="technical" onclick="switchAgent('technical')">⚡ Kai</div>
+    <div class="agent-tab" data-agent="customer_service" onclick="switchAgent('customer_service')">💬 Maya</div>
+    <div class="agent-tab" data-agent="sales" onclick="switchAgent('sales')">📈 Sage</div>
+    <div class="agent-tab" data-agent="escalation" onclick="switchAgent('escalation')">🛡️ Rex</div>
+  </div>
+
+  <div class="chat-messages" id="chatMessages"></div>
+
+  <div class="chat-quick-btns" id="quickBtns">
+    <div class="chat-quick-btn" onclick="sendQuick('How do I get started?')">Get started</div>
+    <div class="chat-quick-btn" onclick="sendQuick('How much will I save?')">My savings</div>
+    <div class="chat-quick-btn" onclick="sendQuick('I have an API error')">API error</div>
+    <div class="chat-quick-btn" onclick="sendQuick('Tell me about pricing')">Pricing</div>
+  </div>
+
+  <div class="chat-input-area">
+    <textarea class="chat-input" id="chatInput" placeholder="Ask anything..." rows="1"
+      onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage()}"
+      oninput="this.style.height='auto';this.style.height=Math.min(this.scrollHeight,100)+'px'"></textarea>
+    <button class="chat-send" id="chatSend" onclick="sendMessage()">➤</button>
+  </div>
+  <div class="chat-powered">Powered by CostImplode AI Agents · Mem0 + Redis memory</div>
+</div>
+
+<script>
+// ── i18n: Key UI strings in 20 languages ──
+const I18N = {
+  en: { badge: 'NOW SAVING UP TO 96% ON LLM TOKEN COSTS', heroTitle: 'AI-Powered LLM Arbitrage Gateway', heroSub: 'Intelligently route LLM requests across 800+ models to slash token costs by up to 96%. One API. Real-time cost arbitrage. Zero code changes.', startFree: 'Start Free →', viewDocs: 'View Documentation', chatPlaceholder: 'Ask anything...', agentOnline: 'Online · Responds instantly', chatGreeting: "Hi! I'm Aria 👋 I'm your AI guide here at CostImplode. Are you looking to get started, have a technical question, or something else?" },
+  hi: { badge: 'LLM टोकन लागत पर अब 96% तक की बचत', heroTitle: 'AI-संचालित LLM आर्बिट्राज गेटवे', heroSub: '800+ मॉडलों में LLM अनुरोधों को रूट करें और टोकन लागत को 96% तक कम करें। एक API। शून्य कोड परिवर्तन।', startFree: 'मुफ़्त शुरू करें →', viewDocs: 'दस्तावेज़ देखें', chatPlaceholder: 'कुछ भी पूछें...', agentOnline: 'ऑनलाइन · तुरंत जवाब', chatGreeting: 'नमस्ते! मैं Aria हूं 👋 CostImplode में आपकी AI गाइड। क्या आप शुरू करना चाहते हैं, या कोई सवाल है?' },
+  zh: { badge: '立即节省高达96%的LLM Token成本', heroTitle: 'AI驱动的LLM套利网关', heroSub: '智能路由LLM请求至800+模型，降低Token成本高达96%。一个API，实时套利，零代码修改。', startFree: '免费开始 →', viewDocs: '查看文档', chatPlaceholder: '随时提问...', agentOnline: '在线 · 即时响应', chatGreeting: '你好！我是Aria 👋 CostImplode的AI向导。您是想开始使用，还是有技术问题？' },
+  es: { badge: 'AHORRA HASTA 96% EN COSTOS DE TOKENS LLM', heroTitle: 'Gateway de Arbitraje LLM con IA', heroSub: 'Enruta solicitudes LLM a 800+ modelos para reducir costos de tokens hasta un 96%. Una API. Arbitraje en tiempo real.', startFree: 'Empieza Gratis →', viewDocs: 'Ver Documentación', chatPlaceholder: 'Pregunta lo que quieras...', agentOnline: 'En línea · Respuesta instantánea', chatGreeting: '¡Hola! Soy Aria 👋 tu guía de IA en CostImplode. ¿Quieres empezar, tienes una pregunta técnica o algo más?' },
+  ar: { badge: 'وفّر حتى 96% على تكاليف رموز LLM', heroTitle: 'بوابة مراجحة LLM بالذكاء الاصطناعي', heroSub: 'وجّه طلبات LLM عبر 800+ نموذج لتقليل تكاليف الرموز بنسبة تصل إلى 96%. واجهة API واحدة. مراجحة فورية.', startFree: 'ابدأ مجاناً ←', viewDocs: 'عرض التوثيق', chatPlaceholder: 'اسأل أي شيء...', agentOnline: 'متصل · رد فوري', chatGreeting: 'مرحباً! أنا Aria 👋 مرشدك في CostImplode. هل تريد البدء أم لديك سؤال؟' },
+  pt: { badge: 'ECONOMIZE ATÉ 96% NOS CUSTOS DE TOKENS LLM', heroTitle: 'Gateway de Arbitragem LLM com IA', heroSub: 'Roteie solicitações LLM por 800+ modelos para reduzir custos de tokens em até 96%. Uma API. Arbitragem em tempo real.', startFree: 'Começar Grátis →', viewDocs: 'Ver Documentação', chatPlaceholder: 'Pergunte qualquer coisa...', agentOnline: 'Online · Resposta instantânea', chatGreeting: 'Olá! Sou a Aria 👋 sua guia de IA no CostImplode. Quer começar, tem dúvida técnica ou outra questão?' },
+  fr: { badge: 'ÉCONOMISEZ JUSQU\'À 96% SUR LES COÛTS LLM', heroTitle: 'Passerelle d\'Arbitrage LLM par IA', heroSub: 'Routez les requêtes LLM sur 800+ modèles pour réduire les coûts de tokens jusqu\'à 96%. Une seule API. Arbitrage en temps réel.', startFree: 'Commencer Gratuitement →', viewDocs: 'Voir la Documentation', chatPlaceholder: 'Posez n\'importe quelle question...', agentOnline: 'En ligne · Réponse instantanée', chatGreeting: 'Bonjour ! Je suis Aria 👋 votre guide IA chez CostImplode. Vous souhaitez démarrer ou avez une question ?' },
+  ru: { badge: 'ЭКОНОМЬТЕ ДО 96% НА ТОКЕНАХ LLM', heroTitle: 'Шлюз Арбитража LLM на ИИ', heroSub: 'Маршрутизируйте запросы LLM через 800+ моделей, сокращая затраты на токены до 96%. Один API. Реальный арбитраж.', startFree: 'Начать Бесплатно →', viewDocs: 'Документация', chatPlaceholder: 'Задайте любой вопрос...', agentOnline: 'Онлайн · Мгновенный ответ', chatGreeting: 'Привет! Я Aria 👋 ваш AI-гид в CostImplode. Хотите начать или есть вопросы?' },
+  ja: { badge: 'LLMトークンコストを最大96%削減', heroTitle: 'AI搭載LLMアービトラージゲートウェイ', heroSub: '800以上のモデルにLLMリクエストをルーティングし、トークンコストを最大96%削減。1つのAPI、リアルタイム裁定取引。', startFree: '無料で始める →', viewDocs: 'ドキュメントを見る', chatPlaceholder: '何でも聞いてください...', agentOnline: 'オンライン・即時応答', chatGreeting: 'こんにちは！Ariaです 👋 CostImplodeのAIガイドです。始め方を知りたいですか？' },
+  de: { badge: 'JETZT BIS ZU 96% BEI LLM-TOKEN-KOSTEN SPAREN', heroTitle: 'KI-gestütztes LLM-Arbitrage-Gateway', heroSub: 'Leiten Sie LLM-Anfragen über 800+ Modelle weiter und senken Sie Token-Kosten um bis zu 96%. Eine API. Echtzeit-Arbitrage.', startFree: 'Kostenlos starten →', viewDocs: 'Dokumentation ansehen', chatPlaceholder: 'Stellen Sie beliebige Fragen...', agentOnline: 'Online · Sofortige Antwort', chatGreeting: 'Hallo! Ich bin Aria 👋 Ihr KI-Guide bei CostImplode. Wie kann ich helfen?' },
+  id: { badge: 'HEMAT HINGGA 96% BIAYA TOKEN LLM', heroTitle: 'Gateway Arbitrase LLM Bertenaga AI', heroSub: 'Arahkan permintaan LLM ke 800+ model untuk memangkas biaya token hingga 96%. Satu API. Arbitrase real-time.', startFree: 'Mulai Gratis →', viewDocs: 'Lihat Dokumentasi', chatPlaceholder: 'Tanya apa saja...', agentOnline: 'Online · Respons instan', chatGreeting: 'Halo! Saya Aria 👋 panduan AI Anda di CostImplode. Ada yang bisa saya bantu?' },
+  bn: { badge: 'LLM টোকেন খরচে ৯৬% পর্যন্ত সাশ্রয়', heroTitle: 'AI-চালিত LLM আর্বিট্রেজ গেটওয়ে', heroSub: '৮০০+ মডেলে LLM রিকোয়েস্ট রাউট করুন এবং টোকেন খরচ ৯৬% পর্যন্ত কমান।', startFree: 'বিনামূল্যে শুরু করুন →', viewDocs: 'ডকুমেন্টেশন দেখুন', chatPlaceholder: 'যেকোনো প্রশ্ন করুন...', agentOnline: 'অনলাইন · তাৎক্ষণিক উত্তর', chatGreeting: 'নমস্কার! আমি Aria 👋 CostImplode-এ আপনার AI গাইড। কীভাবে সাহায্য করতে পারি?' },
+  te: { badge: 'LLM టోకెన్ ఖర్చులలో 96% వరకు ఆదా', heroTitle: 'AI-ఆధారిత LLM ఆర్బిట్రేజ్ గేట్‌వే', heroSub: '800+ మోడల్‌లకు LLM అభ్యర్థనలను రూట్ చేయండి మరియు టోకెన్ ఖర్చులను 96% వరకు తగ్గించండి.', startFree: 'ఉచితంగా ప్రారంభించండి →', viewDocs: 'డాక్యుమెంటేషన్ చూడండి', chatPlaceholder: 'ఏదైనా అడగండి...', agentOnline: 'ఆన్‌లైన్ · తక్షణ స్పందన', chatGreeting: 'నమస్కారం! నేను Aria 👋 CostImplode లో మీ AI గైడ్. ఎలా సహాయపడగలను?' },
+  ta: { badge: 'LLM டோக்கன் செலவில் 96% சேமிக்கவும்', heroTitle: 'AI-இயக்கும் LLM ஆர்பிட்ரேஜ் கேட்வே', heroSub: '800+ மாடல்களுக்கு LLM கோரிக்கைகளை திசைதிருப்பி டோக்கன் செலவை 96% வரை குறைக்கவும்.', startFree: 'இலவசமாக தொடங்கவும் →', viewDocs: 'ஆவணங்கள் பார்க்கவும்', chatPlaceholder: 'எதையும் கேளுங்கள்...', agentOnline: 'ஆன்லைன் · உடனடி பதில்', chatGreeting: 'வணக்கம்! நான் Aria 👋 CostImplode இல் உங்கள் AI வழிகாட்டி. எவ்வாறு உதவட்டுமா?' },
+  mr: { badge: 'LLM टोकन खर्चात ९६% पर्यंत बचत', heroTitle: 'AI-चालित LLM आर्बिट्राज गेटवे', heroSub: '८०० + मॉडेल्सवर LLM विनंत्या रूट करा आणि टोकन खर्च ९६% पर्यंत कमी करा.', startFree: 'मोफत सुरू करा →', viewDocs: 'दस्तावेजीकरण पहा', chatPlaceholder: 'काहीही विचारा...', agentOnline: 'ऑनलाइन · त्वरित उत्तर', chatGreeting: 'नमस्कार! मी Aria आहे 👋 CostImplode मधील तुमची AI मार्गदर्शक. कसे मदत करू?' },
+  kn: { badge: 'LLM ಟೋಕನ್ ವೆಚ್ಚದಲ್ಲಿ 96% ವರೆಗೆ ಉಳಿಸಿ', heroTitle: 'AI-ಚಾಲಿತ LLM ಆರ್ಬಿಟ್ರೇಜ್ ಗೇಟ್‌ವೇ', heroSub: '800+ ಮಾದರಿಗಳಿಗೆ LLM ವಿನಂತಿಗಳನ್ನು ರೂಟ್ ಮಾಡಿ ಮತ್ತು ಟೋಕನ್ ವೆಚ್ಚವನ್ನು 96% ವರೆಗೆ ಕಡಿಮೆ ಮಾಡಿ.', startFree: 'ಉಚಿತವಾಗಿ ಪ್ರಾರಂಭಿಸಿ →', viewDocs: 'ಡಾಕ್ಯುಮೆಂಟೇಶನ್ ನೋಡಿ', chatPlaceholder: 'ಏನಾದರೂ ಕೇಳಿ...', agentOnline: 'ಆನ್‌ಲೈನ್ · ತಕ್ಷಣ ಪ್ರತಿಕ್ರಿಯೆ', chatGreeting: 'ನಮಸ್ಕಾರ! ನಾನು Aria 👋 CostImplode ನಲ್ಲಿ ನಿಮ್ಮ AI ಮಾರ್ಗದರ್ಶಕ.' },
+  gu: { badge: 'LLM ટોકન ખર્ચ પર 96% સુધીની બચત', heroTitle: 'AI-સંચાલિત LLM આર્બિટ્રાજ ગેટવે', heroSub: '800+ મોડલ્સ પર LLM વિનંતીઓ રૂટ કરો અને ટોકન ખર્ચ 96% સુધી ઘટાડો.', startFree: 'મફત શરૂ કરો →', viewDocs: 'દસ્તાવેજ જુઓ', chatPlaceholder: 'કંઈ પણ પૂછો...', agentOnline: 'ઓનલાઈન · તાત્કાલિક જવાબ', chatGreeting: 'નમસ્તે! હું Aria છું 👋 CostImplode ના AI ગાઈડ. કેવી રીતે મદદ કરી શકું?' },
+  ko: { badge: 'LLM 토큰 비용 최대 96% 절감', heroTitle: 'AI 기반 LLM 차익거래 게이트웨이', heroSub: '800개 이상의 모델에 LLM 요청을 라우팅하여 토큰 비용을 최대 96% 절감하세요. 하나의 API.', startFree: '무료로 시작하기 →', viewDocs: '문서 보기', chatPlaceholder: '무엇이든 질문하세요...', agentOnline: '온라인 · 즉시 응답', chatGreeting: '안녕하세요! 저는 Aria입니다 👋 CostImplode의 AI 가이드예요. 어떻게 도와드릴까요?' },
+  tr: { badge: 'LLM TOKEN MALİYETLERİNDE %96\'YA KADAR TASARRUF', heroTitle: 'AI Destekli LLM Arbitraj Ağ Geçidi', heroSub: '800+ modele LLM isteklerini yönlendirerek token maliyetlerini %96\'ya kadar düşürün.', startFree: 'Ücretsiz Başla →', viewDocs: 'Belgeleri Görüntüle', chatPlaceholder: 'Her şeyi sorabilirsiniz...', agentOnline: 'Çevrimiçi · Anında yanıt', chatGreeting: 'Merhaba! Ben Aria 👋 CostImplode\'un AI rehberiyim. Size nasıl yardımcı olabilirim?' },
+  vi: { badge: 'TIẾT KIỆM ĐẾN 96% CHI PHÍ TOKEN LLM', heroTitle: 'Cổng Arbitrage LLM Dựa Trên AI', heroSub: 'Định tuyến yêu cầu LLM qua 800+ mô hình để giảm chi phí token lên đến 96%. Một API. Arbitrage thời gian thực.', startFree: 'Bắt đầu Miễn phí →', viewDocs: 'Xem Tài liệu', chatPlaceholder: 'Hỏi bất cứ điều gì...', agentOnline: 'Trực tuyến · Phản hồi ngay', chatGreeting: 'Xin chào! Tôi là Aria 👋 hướng dẫn AI của bạn tại CostImplode. Tôi có thể giúp gì cho bạn?' }
+};
+
+// ── Agent metadata ──
+const AGENT_META = {
+  welcome:          { name: 'Aria — Welcome',      emoji: '👋', status: 'First contact & routing' },
+  onboarding:       { name: 'Nova — Onboarding',   emoji: '🚀', status: 'Setup & first API call' },
+  technical:        { name: 'Kai — Technical',     emoji: '⚡', status: 'API errors & debugging' },
+  customer_service: { name: 'Maya — Support',      emoji: '💬', status: 'Billing & account help' },
+  sales:            { name: 'Sage — Sales',         emoji: '📈', status: 'Upgrades & enterprise' },
+  escalation:       { name: 'Rex — Escalation',    emoji: '🛡️', status: 'Priority triage' }
+};
+
+// ── Quick button translations ──
+const QUICK_BTNS = {
+  en: ['Get started', 'My savings', 'API error', 'Pricing'],
+  hi: ['शुरू करें', 'मेरी बचत', 'API त्रुटि', 'मूल्य निर्धारण'],
+  zh: ['如何开始', '我的节省', 'API错误', '价格'],
+  es: ['Cómo empezar', 'Mis ahorros', 'Error de API', 'Precios'],
+  ar: ['كيف أبدأ', 'مدخراتي', 'خطأ API', 'الأسعار'],
+  pt: ['Como começar', 'Minha economia', 'Erro de API', 'Preços'],
+  fr: ['Commencer', 'Mes économies', 'Erreur API', 'Tarifs'],
+  ru: ['Как начать', 'Мои сбережения', 'Ошибка API', 'Цены'],
+  ja: ['始め方', '節約額', 'APIエラー', '料金'],
+  de: ['Loslegen', 'Meine Einsparungen', 'API-Fehler', 'Preise'],
+  id: ['Cara mulai', 'Penghematan saya', 'Error API', 'Harga'],
+  bn: ['শুরু করুন', 'আমার সঞ্চয়', 'API ত্রুটি', 'মূল্য'],
+  te: ['ప్రారంభించండి', 'నా ఆదా', 'API లోపం', 'ధర'],
+  ta: ['தொடங்கவும்', 'என் சேமிப்பு', 'API பிழை', 'விலை'],
+  mr: ['सुरू करा', 'माझी बचत', 'API त्रुटी', 'किंमत'],
+  kn: ['ಪ್ರಾರಂಭಿಸಿ', 'ನನ್ನ ಉಳಿತಾಯ', 'API ದೋಷ', 'ಬೆಲೆ'],
+  gu: ['શરૂ કરો', 'મારી બચત', 'API ભૂલ', 'ભાવ'],
+  ko: ['시작하기', '내 절감액', 'API 오류', '가격'],
+  tr: ['Başlayın', 'Tasarruflarım', 'API hatası', 'Fiyatlandırma'],
+  vi: ['Bắt đầu', 'Khoản tiết kiệm', 'Lỗi API', 'Bảng giá']
+};
+
+// ── State ──
+let currentLang = 'en';
+let currentAgent = 'welcome';
+let sessionId = 'sess_' + Math.random().toString(36).slice(2, 10);
+let chatOpen = false;
+let isTyping = false;
+let greeted = false;
+const AGENT_ROUTER_URL = 'https://costimplode-api.michael-38d.workers.dev/';
+
+// ── Language system ──
+  // AUTO-DETECT LANGUAGE FROM DIRECTORY URL
+  document.addEventListener("DOMContentLoaded", () => {
+    const pathLang = window.location.pathname.split('/')[1];
+    const supportedLangs = ['en', 'hi', 'bn', 'te', 'ta', 'mr', 'kn', 'gu', 'zh', 'ar', 'es', 'pt', 'fr', 'ru', 'ja', 'de', 'id', 'ko', 'tr', 'vi'];
+    if (pathLang && supportedLangs.includes(pathLang)) {
+        setLang(pathLang);
+        // Force the dropdown to match the URL
+        const select = document.getElementById("lang-select");
+        if(select) select.value = pathLang;
+    }
+  });
+
+  function setLang(langCode) {
+  currentLang = langCode;
+  document.querySelectorAll('.lang-pill').forEach(p => p.classList.toggle('active', p.dataset.lang === langCode));
+  applyI18n(langCode);
+}
+
+function applyI18n(lang) {
+  const t = I18N[lang] || I18N.en;
+  const badge = document.querySelector('.badge');
+  if (badge) badge.innerHTML = `<span class="badge-dot"></span> ${t.badge}`;
+  const input = document.getElementById('chatInput');
+  if (input) input.placeholder = t.chatPlaceholder;
+  updateQuickBtns(lang);
+}
+
+function updateQuickBtns(lang) {
+  const btns = document.getElementById('quickBtns');
+  if (!btns) return;
+  const labels = QUICK_BTNS[lang] || QUICK_BTNS.en;
+  btns.innerHTML = labels.map(l => `<div class="chat-quick-btn" onclick="sendQuick('${l}')">${l}</div>`).join('');
+}
+
+// Auto-detect from browser
+(function() {
+  const bl = navigator.language || 'en';
+  const code = bl.split('-')[0];
+  if (I18N[code]) setLang(code);
+})();
+
+// ── Chat system ──
+function toggleChat() {
+  chatOpen = !chatOpen;
+  const panel = document.getElementById('chatPanel');
+  const notif = document.getElementById('chatNotif');
+  panel.classList.toggle('open', chatOpen);
+  if (chatOpen) {
+    notif.style.display = 'none';
+    document.getElementById('chatInput').focus();
+    if (!greeted) {
+      greeted = true;
+      setTimeout(() => addBotMessage(I18N[currentLang]?.chatGreeting || I18N.en.chatGreeting), 400);
+    }
+  }
+}
+
+function switchAgent(agentType) {
+  currentAgent = agentType;
+  const meta = AGENT_META[agentType] || AGENT_META.welcome;
+  document.getElementById('agentAvatar').textContent = meta.emoji;
+  document.getElementById('agentName').textContent = meta.name;
+  document.getElementById('agentStatus').textContent = meta.status;
+  document.querySelectorAll('.agent-tab').forEach(t => t.classList.toggle('active', t.dataset.agent === agentType));
+  // New session per agent
+  sessionId = 'sess_' + agentType + '_' + Math.random().toString(36).slice(2, 8);
+  clearMessages();
+  setTimeout(() => {
+    addBotMessage(I18N[currentLang]?.chatGreeting || I18N.en.chatGreeting);
+  }, 300);
+}
+
+function clearMessages() {
+  document.getElementById('chatMessages').innerHTML = '';
+}
+
+function addBotMessage(text) {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg bot';
+  // Convert **bold** markdown
+  const formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+  div.innerHTML = `<div class="chat-msg-bubble">${formatted}</div><div class="chat-msg-meta">${AGENT_META[currentAgent]?.name?.split(' ')[0] || 'Agent'} · just now</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function addUserMessage(text) {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg user';
+  div.innerHTML = `<div class="chat-msg-bubble">${text.replace(/</g,'&lt;')}</div><div class="chat-msg-meta">You · just now</div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function showTyping() {
+  const msgs = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg bot chat-typing';
+  div.id = 'typingIndicator';
+  div.innerHTML = `<div class="chat-typing-bubble"><div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div></div>`;
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+function hideTyping() {
+  const t = document.getElementById('typingIndicator');
+  if (t) t.remove();
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || isTyping) return;
+  input.value = '';
+  input.style.height = 'auto';
+  addUserMessage(text);
+  await callAgent(text);
+}
+
+function sendQuick(text) {
+  document.getElementById('chatInput').value = text;
+  sendMessage();
+}
+
+async function callAgent(message) {
+  isTyping = true;
+  document.getElementById('chatSend').disabled = true;
+  showTyping();
+  try {
+    const res = await fetch(AGENT_ROUTER_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        message,
+        agent_type: currentAgent,
+        session_id: sessionId,
+        language: currentLang
+      })
+    });
+    const data = await res.json();
+    hideTyping();
+    addBotMessage(data.reply || 'Sorry, I had a momentary issue. Please try again.');
+    // Auto-route to suggested agent
+    if (data.route_to && data.route_to !== currentAgent && AGENT_META[data.route_to]) {
+      setTimeout(() => {
+        addBotMessage(`Routing you to ${AGENT_META[data.route_to].emoji} ${AGENT_META[data.route_to].name}...`);
+        setTimeout(() => switchAgent(data.route_to), 800);
+      }, 600);
+    }
+  } catch (e) {
+    hideTyping();
+    addBotMessage('Connection issue. Please try again in a moment.');
+  }
+  isTyping = false;
+  document.getElementById('chatSend').disabled = false;
+}
+</script>
+
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9e01db059841678c',t:'MTc3NDE0NzQ3Nw=='};var a=document.createElement('script');a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</html>

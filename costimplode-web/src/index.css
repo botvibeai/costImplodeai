@@ -1,0 +1,43 @@
+/* React Component Scoped Styles */
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fade {
+  animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.react-input-field {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 1rem;
+  border-radius: 12px;
+  font-family: inherit;
+  transition: border-color 0.2s;
+  font-size: 14px;
+}
+
+.react-input-field:focus {
+  outline: none;
+  border-color: var(--orange-light);
+}
+
+.react-panel {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.2);
+}
+
+.react-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+@media (min-width: 768px) {
+  .react-grid-3 { grid-template-columns: repeat(3, 1fr); }
+}
