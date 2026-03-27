@@ -1,6 +1,7 @@
 name = "costimplode-api"
 main = "src/index.ts"
 compatibility_date = "2024-03-21"
+compatibility_flags = ["nodejs_compat"]
 
 [ai]
 binding = "AI"
@@ -13,29 +14,48 @@ class_name = "ArbitrageStateDO"
 tag = "v1"
 new_classes = ["ArbitrageStateDO"]
 
-[vars]
-CF_ACCOUNT_ID = "238d310f3765a8e468d03595522a0404"
-CF_GATEWAY_ID = "costimplode-gateway"
-
 [[d1_databases]]
 binding = "SHARD_1"
 database_name = "SHARD_1"
 database_id = "36714f60-3da5-456a-b6af-29f4dfdb5119"
-
-[[queues.producers]]
-binding = "MY_QUEUE"
-queue = "8bb8234b6a504be793d004054a401306"
 
 [[d1_databases]]
 binding = "DB"
 database_name = "profitise-leads-db"
 database_id = "987158b4-6594-4555-a585-0f92eb264624"
 
-[[vectorize]]
-binding = "REMEMORY"
-index_name = "rememory-index"
+[[kv_namespaces]]
+binding = "COSTIMPLODE_KV"
+id = "be67bdd3a9dc46b79c60a26fd162959d"
 
-[[queues.consumers]]
-queue = "8bb8234b6a504be793d004054a401306"
-max_batch_size = 10
-dead_letter_queue = "my-queue-dlq"
+[[r2_buckets]]
+binding = "ASSETS"
+bucket_name = "costimplode-assets"
+
+[vars]
+CF_ACCOUNT_ID = "238d310f3765a8e468d03595522a0404"
+CF_GATEWAY_ID = "costimplode-gateway"
+FIREBASE_PROJECT_ID = "costimpllode-cloudflare"
+ENVIRONMENT = "production"
+NATIVE_AGGREGATOR_URL = "https://costimplode-native.michael-38d.workers.dev"
+
+# SECRETS already set or to set:
+# npx wrangler secret put AIML_API_KEY         ← your AIMLAPI key
+# npx wrangler secret put GEMINI_API_KEY        ← already set
+# npx wrangler secret put PLATFORM_API_KEY      ← SAME value as costimplode-native PLATFORM_API_KEY
+# npx wrangler secret put RESEND_API_KEY        ← for email
+
+# COMING LATER (after creating resources):
+# Queue:
+#   npx wrangler queues create costimplode-queue
+#   then add:
+#   [[queues.producers]]
+#   binding = "MY_QUEUE"
+#   queue = "costimplode-queue"
+#
+# Vectorize (ReMemory):
+#   npx wrangler vectorize create rememory-index --dimensions=384 --metric=cosine
+#   then add:
+#   [[vectorize]]
+#   binding = "REMEMORY"
+#   index_name = "rememory-index"

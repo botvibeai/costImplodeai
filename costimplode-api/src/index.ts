@@ -1,411 +1,426 @@
 /**
- * CostImplodeAI Arbitrage Gateway - Autonomous Arbitrageur
- * 
- * Includes:
- * - Durable Object for Global State & Telemetry Feedback Loop
- * - Dynamic Weighting based on Latency & Cost ratio
- * - Triple-Redundant Fallback via CF AI Gateway
- * - Cloudflare Smart Defaults for language-specific routing
+ * CostImplodeAI.com - AI Arbitrage Gateway
+ * BotVibe.cloud
+ *
+ * PROVIDER HIERARCHY:
+ * #1 CostImplode Native  → platform key pre-filled, free CF neurons, pure margin
+ * #2 CometAPI            → BYOK, 500+ models, 10% referral
+ * #3 AIMLAPI             → BYOK, 400+ models, 30% referral (6mo)
+ * Emergency → Workers AI (only if ALL three fail)
  */
 
+import { createRemoteJWKSet, jwtVerify } from 'jose';
+
 export interface Env {
-  AI: any; // Cloudflare Workers AI
+  AI: Ai;
   ARBITRAGE_STATE: DurableObjectNamespace;
+  SHARD_1: D1Database;
+  DB: D1Database;
+  COSTIMPLODE_KV: KVNamespace;
+  ASSETS: R2Bucket;
+
+  // Vars
   CF_ACCOUNT_ID: string;
   CF_GATEWAY_ID: string;
-  COMET_API_KEY: string;
-  AIML_API_KEY: string;
-  REMEMORY_INDEX: any; // VectorizeIndex (legacy stub)
-  REMEMORY: any; // VectorizeIndex (rememory-index)
-  SHARD_1: D1Database;
-  DB: D1Database; // profitise-leads-db
-  AI_GATEWAY: any;
-  MY_QUEUE: any; // Queue
+  FIREBASE_PROJECT_ID: string;
+  ENVIRONMENT: string;
+  NATIVE_AGGREGATOR_URL: string;
+
+  // Secrets
+  PLATFORM_API_KEY: string;
+  AIML_API_KEY?: string;
+  COMET_API_KEY?: string;
+  GEMINI_API_KEY?: string;
+  RESEND_API_KEY?: string;
 }
 
-// The Agent's First Assignment: THE RIG AUDIT
-export async function rigAudit(env: Env, doObj: DurableObjectStub) {
+const CORS = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Methods': 'GET,HEAD,POST,OPTIONS',
+  'Access-Control-Allow-Headers': 'Content-Type, Authorization, x-session-id, x-comet-key, x-aiml-key',
+  'Access-Control-Max-Age': '86400',
+};
+
+function handleOptions(req: Request) {
+  return new Response(null, {
+    headers: { ...CORS, 'Access-Control-Allow-Headers': req.headers.get('Access-Control-Request-Headers') || 'Content-Type, Authorization' },
+  });
+}
+
+function json(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), { status, headers: { ...CORS, 'Content-Type': 'application/json' } });
+}
+
+// PII Redaction
+const PII = [
+  { re: /\b\d{3}-\d{2}-\d{4}\b/g, val: '[SSN]' },
+  { re: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,7}\b/g, val: '[EMAIL]' },
+  { re: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|3[47][0-9]{13})\b/g, val: '[CC]' },
+];
+function pii(t: string) { return PII.reduce((s, r) => s.replace(r.re, r.val), t); }
+
+// Firebase Auth
+const JWKS = createRemoteJWKSet(new URL('https://www.googleapis.com/service_accounts/v1/jwk/securetoken@system.gserviceaccount.com'));
+async function verifyFB(token: string, pid: string) {
   try {
-    // Deep execution: Querying live Durable Object state for real analytics instead of simulated CF GraphQL
-    const telemetryRes = await doObj.fetch(new Request("http://do/metrics"));
-    const telemetryData = await telemetryRes.json() as any;
-    
-    const hitRatePercent = telemetryData.totalRequests > 0 
-      ? Math.round((telemetryData.totalCacheHits / telemetryData.totalRequests) * 100)
-      : 0;
-
-    const status = {
-      vectorCapacity: env.REMEMORY_INDEX ? await env.REMEMORY_INDEX.describe() : { count: "Not Provisioned - Awaiting Paid Tier" },
-      databasePressure: env.SHARD_1 ? await env.SHARD_1.prepare("SELECT COUNT(*) as count FROM leads").first() : { count: 0 },
-      cacheHitRatio: `${hitRatePercent}%`,
-    };
-
-    let pressureAlert = false;
-    if (typeof status.vectorCapacity.count === 'number' && status.vectorCapacity.count > 8000000) pressureAlert = true;
-    if (typeof status.databasePressure.count === 'number' && status.databasePressure.count > 1000000) pressureAlert = true;
-
-    if (pressureAlert) return `WARNING: PRESSURE HIGH. SHARD NOW. | Stats: ${JSON.stringify(status)}`;
-    return `RIG STRENGTH: 100%. PROCEED TO SCALE. | Stats: ${JSON.stringify(status)}`;
-
-  } catch (e: any) {
-    return `AUDIT FAILURE: ${e.message}`;
-  }
+    const { payload } = await jwtVerify(token, JWKS, { issuer: `https://securetoken.google.com/${pid}`, audience: pid });
+    return payload;
+  } catch { return null; }
 }
 
-// Provider State structure
-interface ProviderStats {
-  requestsCount: number;
-  errorCount: number;
-  averageLatencyMs: number;
-  tokenCostPerM: number;
-  quarantinedUntil?: number;
-}
-
-// The Durable Object mapping telemetry to global value scores
+// ── Durable Object ─────────────────────────────────────────────────────────
 export class ArbitrageStateDO {
   state: DurableObjectState;
-
-  constructor(state: DurableObjectState, env: Env) {
+  constructor(state: DurableObjectState) {
     this.state = state;
     this.state.blockConcurrencyWhile(async () => {
-      // Deep Execution: Establish 6-Hour alarm for autonomous maintenance
-      const currentAlarm = await this.state.storage.getAlarm();
-      if (!currentAlarm) {
-        await this.state.storage.setAlarm(Date.now() + 6 * 60 * 60 * 1000);
+      if (!await this.state.storage.getAlarm()) {
+        await this.state.storage.setAlarm(Date.now() + 6 * 3600 * 1000);
       }
     });
   }
 
-  // Deep Execution: Autonomous Self-Healing Sequence (Alarms API)
   async alarm() {
-    let stats: Record<string, ProviderStats> = await this.state.storage.get("provider_stats") || {};
-    // Flush quarantined providers and purge bad telemetry
-    for (const [provider, data] of Object.entries(stats)) {
-      if (data.quarantinedUntil && data.quarantinedUntil < Date.now()) {
-        data.quarantinedUntil = undefined;
-        data.errorCount = 0;
-        data.requestsCount = 0; 
+    const stats = await this.state.storage.get<any>('stats') || {};
+    for (const d of Object.values(stats) as any[]) {
+      if (d.quarantinedUntil && d.quarantinedUntil < Date.now()) {
+        d.quarantinedUntil = undefined; d.errors = 0; d.reqs = 0;
       }
     }
-    await this.state.storage.put("provider_stats", stats);
-    // Reset alarm for next 6 hours
-    await this.state.storage.setAlarm(Date.now() + 6 * 60 * 60 * 1000);
-    console.log("6-Hour Maintenance Cycle Complete: Arbitrage weights optimized, dead nodes purged.");
+    await this.state.storage.put('stats', stats);
+    await this.state.storage.setAlarm(Date.now() + 6 * 3600 * 1000);
   }
 
-  async fetch(request: Request) {
-    const url = new URL(request.url);
-
-    // Default Provider Base Configs
-    let stats: Record<string, ProviderStats> = await this.state.storage.get("provider_stats") || {
-      aimlapi: { requestsCount: 0, errorCount: 0, averageLatencyMs: 150, tokenCostPerM: 0.10 },
-      cometapi: { requestsCount: 0, errorCount: 0, averageLatencyMs: 180, tokenCostPerM: 0.08 }
+  async fetch(req: Request): Promise<Response> {
+    const url = new URL(req.url);
+    const defaults = {
+      native:   { reqs: 0, errors: 0, latency: 80,  cost: 0.00 },
+      cometapi: { reqs: 0, errors: 0, latency: 180, cost: 0.08 },
+      aimlapi:  { reqs: 0, errors: 0, latency: 150, cost: 0.10 },
     };
-    let globalMetrics = await this.state.storage.get("global_metrics") as { totalRequests: number, totalCacheHits: number } || { totalRequests: 0, totalCacheHits: 0 };
+    let stats = await this.state.storage.get<any>('stats') || defaults;
+    let metrics = await this.state.storage.get<any>('metrics') || {
+      total: 0, cacheHits: 0, savings: 0, fallbacks: 0, emergency: 0
+    };
 
-    if (url.pathname === "/metrics") {
-      return new Response(JSON.stringify(globalMetrics));
-    }
+    if (url.pathname === '/metrics') return new Response(JSON.stringify({ metrics, stats }));
 
-    if (url.pathname === "/update") {
-      const { provider, latency, isError, cost, isCacheHit } = await request.json() as any;
-      
-      globalMetrics.totalRequests++;
-      if (isCacheHit) globalMetrics.totalCacheHits++;
-
-      const p = stats[provider];
-      if (p && !isCacheHit) {
-        p.requestsCount++;
-        if (isError) p.errorCount++;
-        
-        // Rolling average for TTFT
-        p.averageLatencyMs = Math.round((p.averageLatencyMs * 9 + latency) / 10);
-        if (cost) p.tokenCostPerM = cost;
-
-        // Quarantine check (5% error rate condition)
-        if (p.requestsCount > 50 && (p.errorCount / p.requestsCount) > 0.05) {
-          p.quarantinedUntil = Date.now() + 30 * 60 * 1000; // 30 min quarantine
-          console.log(`[ALERT] Provider ${provider} quarantined!`);
-        }
+    if (url.pathname === '/update') {
+      const b = await req.json<any>();
+      metrics.total++;
+      if (b.cacheHit) metrics.cacheHits++;
+      if (b.emergency) metrics.emergency++;
+      if (b.fallback) metrics.fallbacks++;
+      const p = stats[b.provider];
+      if (p && !b.cacheHit) {
+        p.reqs++;
+        if (b.error) p.errors++;
+        p.latency = Math.round((p.latency * 9 + b.latency) / 10);
+        if (p.reqs > 50 && p.errors / p.reqs > 0.05) p.quarantinedUntil = Date.now() + 30 * 60000;
       }
-      
-      await this.state.storage.put("provider_stats", stats);
-      await this.state.storage.put("global_metrics", globalMetrics);
-      return new Response("Updated");
+      await this.state.storage.put('stats', stats);
+      await this.state.storage.put('metrics', metrics);
+      return new Response('OK');
     }
 
-    if (url.pathname === "/best") {
-      let bestProvider = "cometapi"; // default
-      let maxScore = -1;
-
-      for (const [providerName, data] of Object.entries(stats)) {
-        if (data.quarantinedUntil && data.quarantinedUntil > Date.now()) continue;
-        
-        const score = 1 / (data.averageLatencyMs * data.tokenCostPerM);
-        if (score > maxScore) {
-          maxScore = score;
-          bestProvider = providerName;
-        }
+    if (url.pathname === '/best') {
+      let best = 'native'; let max = -1;
+      for (const [n, d] of Object.entries(stats) as any[]) {
+        if (d.quarantinedUntil && d.quarantinedUntil > Date.now()) continue;
+        const score = d.cost === 0 ? 999 : 1 / (d.latency * d.cost);
+        if (score > max) { max = score; best = n; }
       }
-      return new Response(JSON.stringify({ bestProvider, stats }));
+      return new Response(JSON.stringify({ best, stats }));
     }
-
-    return new Response("Not Found", { status: 404 });
+    return new Response('Not Found', { status: 404 });
   }
 }
 
-// CORS Helper
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Methods": "GET,HEAD,POST,OPTIONS",
-  "Access-Control-Max-Age": "86400",
-};
-
-function handleOptions(request: Request) {
-  return new Response(null, { headers: { ...corsHeaders, "Access-Control-Allow-Headers": request.headers.get("Access-Control-Request-Headers") || "" } });
-}
-
-// DLP Regex rules for basic Edge PII redaction
-const PII_RULES = [
-  { regex: /\b\d{3}-\d{2}-\d{4}\b/g, replace: "[REDACTED_SSN]" },
-  { regex: /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,7}\b/g, replace: "[REDACTED_EMAIL]" },
-  { regex: /\b(?:4[0-9]{12}(?:[0-9]{3})?|5[1-5][0-9]{14}|6(?:011|5[0-9][0-9])[0-9]{12}|3[47][0-9]{13}|3(?:0[0-5]|[68][0-9])[0-9]{11}|(?:2131|1800|35\d{3})\d{11})\b/g, replace: "[REDACTED_CC]" }
-];
-
-function redactPII(text: string): string {
-  if (!text) return text;
-  let cleanText = text;
-  for (const rule of PII_RULES) {
-    cleanText = cleanText.replace(rule.regex, rule.replace);
-  }
-  return cleanText;
-}
-
+// ── Main Worker ─────────────────────────────────────────────────────────────
 export default {
-  // Deep Execution: Full Queue Handler logic for automated offline processing
-  async queue(batch: any, env: Env): Promise<void> {
-    for (const msg of batch.messages) {
-      try {
-        const payload = msg.body;
-        // Deep Execution: If user didn't provide AIML key, safely purge the queue or handle internally.
-        if (!env.AIML_API_KEY) {
-          console.error("Queue execution bypassed: Missing AIML_API_KEY environment variable.");
-          msg.ack();
-          continue;
-        }
-
-        // True Execution: S10 "Non-Urgent Request Batching" 
-        // We route directly to the secondary provider (AIMLAPI) which handles velocity queue loops efficiently
-        const apiRes = await fetch(`https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/${env.CF_GATEWAY_ID}/custom-aimlapi/chat/completions`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${env.AIML_API_KEY}`
-          },
-          body: JSON.stringify(payload)
-        });
-
-        if (!apiRes.ok) throw new Error("Batch API Error: " + await apiRes.text());
-        msg.ack(); // Successful batch execution
-      } catch (e) {
-        console.error("Queue execution failure. Pushing back to DLQ logic.", e);
-        msg.retry(); 
-      }
-    }
-  },
-
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
-    if (request.method === "OPTIONS") return handleOptions(request);
-    
-    // --- AI LABYRINTH BOT DEFENSE ---
-    // If Cloudflare Bot Management detects a scraper/bot (Score < 30)
-    if (request.cf && request.cf.botManagement && (request.cf.botManagement.score as number) < 30) {
-      console.log("[LABYRINTH] Unauthorized BOT detected. Rerouting to Labyrinth Endpoints.");
-      const decoyHtml = `<html><body><script>setInterval(()=>document.body.innerHTML += "<p>" + Math.random() + " quantum fluctuations observed.</p>", 500);</script></body></html>`;
-      return new Response(decoyHtml, { headers: { "Content-Type": "text/html" } });
-    }
-
-    // --- RIG AUDIT ENDPOINT ---
+    if (request.method === 'OPTIONS') return handleOptions(request);
     const url = new URL(request.url);
+    const doId = env.ARBITRAGE_STATE.idFromName('global-v1');
+    const DO = env.ARBITRAGE_STATE.get(doId);
 
-    // Deep Execution: DO bindings initialized exactly when needed
-    const doId = env.ARBITRAGE_STATE.idFromName("global-arbitrage-1");
-    const obj = env.ARBITRAGE_STATE.get(doId);
-
-    if (url.pathname === "/api/audit" && request.method === "GET") {
-      const auditResult = await rigAudit(env, obj);
-      return new Response(JSON.stringify({ status: auditResult }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
+    // Firebase auth proxy
+    if (url.pathname.startsWith('/__/auth/')) {
+      return fetch(new Request(
+        `https://${env.FIREBASE_PROJECT_ID}.firebaseapp.com${url.pathname}${url.search}`,
+        { method: request.method, headers: request.headers, body: request.body, redirect: 'manual' }
+      ));
     }
 
-    if (request.method !== "POST") return new Response("Method not allowed", { status: 405 });
+    // Bot labyrinth
+    const cf = (request as any).cf;
+    if (cf?.botManagement?.score < 30) {
+      return new Response('<html><body><script>setInterval(()=>document.body.innerHTML+=Math.random(),400)</script></body></html>',
+        { headers: { 'Content-Type': 'text/html' } });
+    }
+
+    // Health
+    if (url.pathname === '/health') return json({ status: 'ok', ts: new Date().toISOString() });
+
+    // Audit
+    if (url.pathname === '/api/audit' && request.method === 'GET') {
+      const m = await (await DO.fetch(new Request('http://do/metrics'))).json<any>();
+      let users = 0;
+      try { users = (await env.SHARD_1.prepare('SELECT COUNT(*) as c FROM users').first<any>())?.c || 0; } catch {}
+      return json({ status: 'OPERATIONAL', phase: 'BYOK+Native Phase 0', ...m, users, ts: new Date().toISOString() });
+    }
+
+    // Enterprise form
+    if (url.pathname === '/api/enterprise-inquiry' && request.method === 'POST') {
+      try {
+        const b = await request.json<any>();
+        await env.DB.prepare(
+          'INSERT INTO enterprise_leads (name, company, email, monthly_volume, message) VALUES (?,?,?,?,?)'
+        ).bind(b.name, b.company, b.email, b.volume, b.message).run();
+        if (env.RESEND_API_KEY) {
+          ctx.waitUntil(fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              from: 'noreply@costimplodeai.com', to: 'sales@costimplodeai.com',
+              subject: `Enterprise Inquiry — ${b.company}`,
+              html: `<h2>New Enterprise Lead</h2><p><b>Name:</b> ${b.name}</p><p><b>Company:</b> ${b.company}</p><p><b>Email:</b> ${b.email}</p><p><b>Volume:</b> ${b.volume}</p><p><b>Message:</b> ${b.message}</p>`,
+            }),
+          }));
+        }
+        return json({ success: true });
+      } catch { return json({ error: 'Failed' }, 500); }
+    }
+
+    // Waitlist signup
+    if (url.pathname === '/api/waitlist' && request.method === 'POST') {
+      try {
+        const b = await request.json<any>();
+        await env.DB.prepare('INSERT OR IGNORE INTO waitlist (email, product, language, source) VALUES (?,?,?,?)')
+          .bind(b.email, b.product || 'costimplodeai', b.language || 'en', b.source || 'web').run();
+        return json({ success: true, message: 'Added to waitlist.' });
+      } catch { return json({ error: 'Failed' }, 500); }
+    }
+
+    // Provider list - shows users the 3 providers
+    if (url.pathname === '/api/providers' && request.method === 'GET') {
+      return json({
+        providers: [
+          {
+            id: 'costimplode_native',
+            name: 'CostImplode Native',
+            badge: 'RECOMMENDED',
+            description: 'Our own infrastructure. API key pre-filled. Fastest & cheapest.',
+            byok: false,
+            api_key_included: true,
+            free_models: ['ci-nano', 'ci-swift'],
+            signup_required: false,
+            referral_link: null,
+          },
+          {
+            id: 'cometapi',
+            name: 'CometAPI',
+            badge: '500+ MODELS',
+            description: 'Access GPT-5, Claude 4.6, Gemini 3, Sora 2, Veo 3.1 and 500+ more.',
+            byok: true,
+            api_key_included: false,
+            signup_required: true,
+            referral_link: 'https://cometapi.com?ref=costimplodeai',
+            signup_url: 'https://cometapi.com/register',
+            docs: 'https://docs.cometapi.com',
+          },
+          {
+            id: 'aimlapi',
+            name: 'AIML API',
+            badge: '50K FREE/DAY',
+            description: '400+ models. 50,000 free tokens daily. Best for reasoning & audio.',
+            byok: true,
+            api_key_included: false,
+            signup_required: true,
+            referral_link: 'https://aimlapi.com?ref=costimplodeai',
+            signup_url: 'https://aimlapi.com/app/sign-up',
+            docs: 'https://docs.aimlapi.com',
+          },
+        ],
+      });
+    }
+
+    // ── Main inference endpoint ──────────────────────────────────────────────
+    const isInference = request.method === 'POST' && (
+      url.pathname === '/' ||
+      url.pathname === '/v1/chat/completions' ||
+      url.pathname === '/api/chat'
+    );
+
+    if (!isInference) return json({ error: 'Not found' }, 404);
+
+    const t0 = Date.now();
+
+    // Auth
+    let uid = 'anon';
+    const auth = request.headers.get('Authorization') || '';
+    if (auth.startsWith('Bearer ')) {
+      const token = auth.slice(7);
+      const v = await verifyFB(token, env.FIREBASE_PROJECT_ID);
+      if (v) uid = v.uid as string;
+    }
 
     try {
-      const body: any = await request.clone().json();
-      
-      // -- DLP PII REDACTION LAYER --
-      const prompt = redactPII(body.prompt || "");
-      const lang = redactPII(body.language || "en"); 
+      const raw = await request.json<any>();
 
-      // Smart Defaults for Hindi Directory
-      if (lang === "hi") {
-        const hiStart = Date.now();
-        const hiRes = await env.AI.run("@cf/meta/llama-3.2-1b-instruct", { messages: [{ role: "user", content: prompt }] });
-        
-        // Deep Execution: Force telemetry push for physical Cache Hit on Smart Default
-        const localObj = env.ARBITRAGE_STATE.get(env.ARBITRAGE_STATE.idFromName("global-arbitrage-1"));
-        ctx.waitUntil(localObj.fetch(new Request("http://do/update", { method: "POST", body: JSON.stringify({ isCacheHit: true }) })));
+      // Extract BYOK keys
+      const cometKey = request.headers.get('x-comet-key') || raw.comet_api_key || env.COMET_API_KEY;
+      const aimlKey  = request.headers.get('x-aiml-key')  || raw.aiml_api_key  || env.AIML_API_KEY;
+      const selectedProvider = raw.provider || 'auto';
 
-        return new Response(JSON.stringify({
-          source: "Cloudflare Workers AI (@cf/meta/llama-3.2-1b-instruct)",
-          tier: "Smart Default (Hindi)",
-          response: hiRes.response,
-          costSavedPercentage: 100, // Edge native
-          latency: `${Date.now() - hiStart}ms`
-        }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
+      // Redact PII
+      if (raw.messages?.length) {
+        raw.messages[raw.messages.length - 1].content = pii(raw.messages[raw.messages.length - 1].content || '');
       }
 
-      // DO Singleton for autonomous routing state
-      const doId = env.ARBITRAGE_STATE.idFromName("global-arbitrage-1");
-      const obj = env.ARBITRAGE_STATE.get(doId);
+      const prompt = raw.messages?.[raw.messages.length - 1]?.content || raw.prompt || '';
+      const lang   = raw.language || 'en';
 
-      // Verify task complexity for logic mapping
-      const isComplex = typeof prompt === 'string' && (prompt.toLowerCase().includes("code") || prompt.toLowerCase().includes("analyze") || prompt.length > 300);
+      // Hindi fast path - always native, always free
+      if (lang === 'hi') {
+        const r = await env.AI.run('@cf/meta/llama-3.2-1b-instruct' as any, { messages: raw.messages || [{ role: 'user', content: prompt }] }) as any;
+        ctx.waitUntil(DO.fetch(new Request('http://do/update', { method: 'POST', body: JSON.stringify({ provider: 'native', latency: Date.now() - t0, cacheHit: true }) })));
+        return json({ response: r.response, reply: r.response, source: 'native_hindi', latency: `${Date.now() - t0}ms`, cost: 0 });
+      }
 
-      // Only perform external arbitrage if task is complex
-      if (isComplex) {
-        
-        // --- TRIPLE REDUNDANT ROUTING ARCHITECTURE ---
-        // Format payload to OpenAI standard
-        const requestData = {
-          model: "gpt-4o", // Usually we would map this to specific IDs like gpt-5.2-chat
-          messages: [{ role: "user", content: prompt }],
-          ...(body.max_tokens && { max_tokens: body.max_tokens })
-        };
+      // Get best provider from DO
+      const best = await (await DO.fetch(new Request('http://do/best'))).json<any>();
 
-        // Deep Execution: Retrieve True Arbitrator Weights dynamically
-        const bestRes = await obj.fetch(new Request("http://do/best"));
-        const bestData = await bestRes.json() as any;
-        const TARGET_PROVIDER = bestData.bestProvider || "cometapi";
+      // Build inference payload
+      const payload = {
+        model: raw.model || 'gpt-4o-mini',
+        messages: raw.messages || [{ role: 'user', content: prompt }],
+        max_tokens: raw.max_tokens || 2048,
+        temperature: raw.temperature || 0.7,
+        stream: false,
+      };
 
-        const globalStart = Date.now();
-        let finalSource = TARGET_PROVIDER;
-        let textResult = "";
+      // Provider chain - Native first, then BYOK
+      interface Provider {
+        id: string;
+        enabled: boolean;
+        call: () => Promise<Response>;
+        timeout: number;
+      }
 
-        // Math execution: Real arbitrary savings compared to standard flagships like GPT-5 native ($15.00/M) vs our Arbitrage Provider
-        // Let's dynamically calculate savings assuming raw $15.00/M vs our calculated provider cost tracking
-        const nativeCost = 15.00;
-        const targetCostPerM = bestData.stats[TARGET_PROVIDER]?.tokenCostPerM || 0.10;
-        let costSavings = Math.round(100 - ((targetCostPerM / nativeCost) * 100));
+      const providers: Provider[] = [
+        // Provider #1: CostImplode Native (platform key pre-filled)
+        {
+          id: 'native',
+          enabled: !!env.PLATFORM_API_KEY && selectedProvider !== 'cometapi' && selectedProvider !== 'aimlapi',
+          timeout: 10000,
+          call: () => fetch(`${env.NATIVE_AGGREGATOR_URL}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${env.PLATFORM_API_KEY}` },
+            body: JSON.stringify({ ...payload, model: mapToNative(payload.model) }),
+            signal: AbortSignal.timeout(10000),
+          }),
+        },
+        // Provider #2: CometAPI (BYOK)
+        {
+          id: 'cometapi',
+          enabled: !!cometKey && selectedProvider !== 'aimlapi',
+          timeout: 12000,
+          call: () => fetch(
+            `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/${env.CF_GATEWAY_ID}/custom-comet/chat/completions`,
+            { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${cometKey}` }, body: JSON.stringify(payload), signal: AbortSignal.timeout(12000) }
+          ),
+        },
+        // Provider #3: AIMLAPI (BYOK)
+        {
+          id: 'aimlapi',
+          enabled: !!aimlKey,
+          timeout: 15000,
+          call: () => fetch(
+            `https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/${env.CF_GATEWAY_ID}/custom-aimlapi/chat/completions`,
+            { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${aimlKey}` }, body: JSON.stringify(payload), signal: AbortSignal.timeout(15000) }
+          ),
+        },
+      ];
 
-        // Strategy 1: Primary (CometAPI)
+      // Sort by DO recommendation
+      providers.sort((a, b) => a.id === best.best ? -1 : b.id === best.best ? 1 : 0);
+
+      let result = ''; let source = ''; let isEmergency = false;
+
+      for (const p of providers) {
+        if (!p.enabled) continue;
+        const ps = Date.now();
         try {
-          // Deep Execution: User only provided one key! Instantly failover zero-latency.
-          if (!env.COMET_API_KEY) throw new Error("Missing COMET_API_KEY. Bypassing node.");
-
-          // Verify we have Gateway keys before executing real fetch, otherwise simulation fallback
-          if (!env.CF_ACCOUNT_ID) throw new Error("No CF_ACCOUNT_ID provided, failing over");
-
-          const cometResponse = await fetch(`https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/${env.CF_GATEWAY_ID}/custom-comet/chat/completions`, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "Authorization": `Bearer ${env.COMET_API_KEY}`
-            },
-            body: JSON.stringify(requestData),
-            signal: AbortSignal.timeout(3000) 
-          });
-
-          if (!cometResponse.ok) throw new Error("Comet non-ok response");
-          const cometData = await cometResponse.json() as any;
-          textResult = cometData.choices[0].message.content;
-          
-          // Log DO Telemetry
-          ctx.waitUntil(obj.fetch(new Request("http://do/update", { method: "POST", body: JSON.stringify({ provider: "cometapi", latency: Date.now() - globalStart, isError: false }) })));
-
-        } catch (cometError) {
-          console.log("CometAPI Down or Slow. Switching to AIMLAPI...");
-          
-          // Strategy 2: Secondary (AIMLAPI)
-          try {
-            // Deep Execution: User only provided one key! Instantly failover zero-latency to Cloudflare.
-            if (!env.AIML_API_KEY) throw new Error("Missing AIML_API_KEY. Bypassing node.");
-
-            const timeSecondary = Date.now();
-            finalSource = "AIMLAPI";
-            // Deep Execution calculating Dynamic Node Math
-            const aimlCost = bestData.stats["aimlapi"]?.tokenCostPerM || 0.12;
-            costSavings = Math.round(100 - ((aimlCost / nativeCost) * 100));
-
-            if (!env.CF_ACCOUNT_ID) throw new Error("No CF_ACCOUNT_ID provided, failing over");
-
-            const aimlResponse = await fetch(`https://gateway.ai.cloudflare.com/v1/${env.CF_ACCOUNT_ID}/${env.CF_GATEWAY_ID}/custom-aimlapi/chat/completions`, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "Authorization": `Bearer ${env.AIML_API_KEY}`
-              },
-              body: JSON.stringify(requestData),
-              signal: AbortSignal.timeout(5000)
-            });
-
-            if (!aimlResponse.ok) throw new Error("AIML non-ok response");
-            const aimlData = await aimlResponse.json() as any;
-            textResult = aimlData.choices[0].message.content;
-            
-            // Log DO Telemetry (Comet errored, AIML succeeded)
-            ctx.waitUntil(obj.fetch(new Request("http://do/update", { method: "POST", body: JSON.stringify({ provider: "cometapi", latency: 3000, isError: true }) })));
-            ctx.waitUntil(obj.fetch(new Request("http://do/update", { method: "POST", body: JSON.stringify({ provider: "aimlapi", latency: Date.now() - timeSecondary, isError: false }) })));
-            
-          } catch (aimlError) {
-            console.log("DUAL SHUTDOWN DETECTED. Triggering Cloudflare Internal...");
-            
-            // Strategy 3: Emergency (Cloudflare Workers AI)
-            finalSource = "Cloudflare Workers AI (Emergency Fallback)";
-            costSavings = 100; // Complete internal fallback requires NO token cost via Workers AI limits
-            const emergencyModel = "@cf/meta/llama-3.1-8b-instruct";
-            
-            const cfResponse = await env.AI.run(emergencyModel, {
-              messages: [{ role: "user", content: prompt }]
-            });
-            textResult = cfResponse.response;
-
-            // Log DO Telemetry (Both failed)
-            ctx.waitUntil(obj.fetch(new Request("http://do/update", { method: "POST", body: JSON.stringify({ provider: "aimlapi", latency: 5000, isError: true }) })));
-          }
-        }
-
-        return new Response(JSON.stringify({
-          source: finalSource,
-          tier: "Brain Surgeon",
-          response: textResult,
-          costSavedPercentage: costSavings,
-          latency: `${Date.now() - globalStart}ms`,
-        }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
-        
-      } else {
-        // Low cognitive load -> Route strictly to Edge Workers AI (Janitor)
-        const startJanitor = Date.now();
-        let textResult = "";
-        try {
-          const aiResponse = await env.AI.run("@cf/meta/llama-3.2-1b-instruct", { messages: [{ role: "user", content: prompt }] });
-          textResult = aiResponse.response;
-          // Deep Execution: Record successful edge physical processing
-          ctx.waitUntil(obj.fetch(new Request("http://do/update", { method: "POST", body: JSON.stringify({ isCacheHit: true }) })));
+          const res = await p.call();
+          if (!res.ok) throw new Error(`${p.id} ${res.status}`);
+          const d = await res.json<any>();
+          result = d.choices?.[0]?.message?.content || d.response || '';
+          source = p.id;
+          ctx.waitUntil(DO.fetch(new Request('http://do/update', { method: 'POST', body: JSON.stringify({ provider: p.id, latency: Date.now() - ps }) })));
+          break;
         } catch (e) {
-          textResult = `Simple request intercepted and processed by Edge Janitor. Zero token cost incurred via worker cache.`;
+          console.error(`[${p.id}] failed:`, (e as Error).message);
+          ctx.waitUntil(DO.fetch(new Request('http://do/update', { method: 'POST', body: JSON.stringify({ provider: p.id, latency: p.timeout, error: true, fallback: true }) })));
+          // Log outage
+          ctx.waitUntil(env.SHARD_1.prepare('INSERT INTO provider_outages (provider, error_type, requests_affected, fallback_used) VALUES (?,?,1,?)')
+            .bind(p.id, (e as Error).message, 'next_provider').run());
         }
-
-        return new Response(JSON.stringify({
-          source: "Cloudflare Workers AI (@cf/meta/llama-3.2-1b-instruct)",
-          tier: "Edge Janitor",
-          response: textResult,
-          costSavedPercentage: 96,
-          latency: `${Date.now() - startJanitor}ms`,
-        }), { headers: { "Content-Type": "application/json", ...corsHeaders } });
       }
 
-    } catch (error: any) {
-      return new Response(JSON.stringify({error: error.message}), { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json"} });
+      // Emergency fallback - Workers AI only if ALL providers failed
+      if (!result) {
+        isEmergency = true;
+        console.warn('[EMERGENCY] All providers failed. Workers AI fallback activated.');
+        const model = prompt.length > 200 ? '@cf/meta/llama-3.1-8b-instruct-fp8-fast' : '@cf/meta/llama-3.2-1b-instruct';
+        try {
+          const r = await env.AI.run(model as any, { messages: payload.messages }) as any;
+          result = r.response || '';
+          source = 'workers_ai_emergency';
+          ctx.waitUntil(DO.fetch(new Request('http://do/update', { method: 'POST', body: JSON.stringify({ provider: 'native', latency: Date.now() - t0, emergency: true }) })));
+        } catch {
+          return json({ error: 'All providers temporarily unavailable. Please retry.' }, 503);
+        }
+      }
+
+      // Log usage
+      const iTokens = Math.ceil(prompt.length / 4);
+      const oTokens = Math.ceil(result.length / 4);
+      ctx.waitUntil(env.SHARD_1.prepare(
+        'INSERT INTO usage_logs (uid, model, provider, input_tokens, output_tokens, latency_ms) VALUES (?,?,?,?,?,?)'
+      ).bind(uid, payload.model, source, iTokens, oTokens, Date.now() - t0).run());
+
+      // Return OpenAI-compatible
+      if (url.pathname === '/v1/chat/completions') {
+        return json({
+          id: `chatcmpl-ci-${crypto.randomUUID()}`,
+          object: 'chat.completion',
+          created: Math.floor(Date.now() / 1000),
+          model: payload.model,
+          choices: [{ index: 0, message: { role: 'assistant', content: result }, finish_reason: 'stop' }],
+          usage: { prompt_tokens: iTokens, completion_tokens: oTokens, total_tokens: iTokens + oTokens },
+          x_costimplode: { source, latency_ms: Date.now() - t0, emergency: isEmergency },
+        });
+      }
+
+      return json({ response: result, reply: result, source, latency: `${Date.now() - t0}ms`, emergency: isEmergency });
+
+    } catch (e) {
+      return json({ error: (e as Error).message }, 500);
     }
   },
 };
+
+// Map common model names to our native models
+function mapToNative(model: string): string {
+  const map: Record<string, string> = {
+    'gpt-4o': 'ci-pro',
+    'gpt-4o-mini': 'ci-standard',
+    'gpt-3.5-turbo': 'ci-swift',
+    'claude-haiku': 'ci-standard',
+    'mistral-small': 'ci-mistral',
+    'o1-mini': 'ci-reason',
+    'deepseek-r1': 'ci-reason',
+  };
+  return map[model] || 'ci-standard';
+}
