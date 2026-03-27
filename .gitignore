@@ -6,3 +6,7 @@ dist/
 *.log
 CostImplode_SourceCode.zip
 init.sql
+
+.dev.vars*
+!.dev.vars.example
+!.env.example
